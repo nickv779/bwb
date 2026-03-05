@@ -1,0 +1,40 @@
+# ========================
+# Gradle
+# ========================
+.gradle/
+build/
+app/build/
+**/build/
+
+# ========================
+# Android Studio / IntelliJ
+# ========================
+.idea/
+*.iml
+*.iws
+*.ipr
+local.properties
+
+# ========================
+# Secrets & Keys (CRITICAL)
+# ========================
+keystore.properties
+*.jks
+*.keystore
+release/
+signing/
+
+# ========================
+# OS Garbage
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+# Logs & Temps
+# ========================
+*.log
+*.tmp
+*.temp
+*.swp
