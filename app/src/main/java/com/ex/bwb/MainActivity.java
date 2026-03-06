@@ -15,7 +15,7 @@ import gl.activities.GyroscopicActivity;
 public class MainActivity extends GyroscopicActivity {
     private static final String TAG = "MainActivity";
 
-    // FLIP THIS: true on the host phone, false on the joining phone
+    // true on the host phone, false on the joining phone
     private static final boolean IS_HOST = true;
     private static final int PORT = 5556;
 
@@ -23,6 +23,9 @@ public class MainActivity extends GyroscopicActivity {
     private GameClient client;
     private ServerDiscovery discovery;
     private WifiManager.MulticastLock multicastLock;
+
+    // Fake 4 players for testing environment
+    private GameClient[] testClients = new GameClient[4];
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -43,9 +46,12 @@ public class MainActivity extends GyroscopicActivity {
             Log.d(TAG, "Hosting game...");
 
             // Host also connects as a client to itself
+            // Connects to itself 4 times for testing environment
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                client = new GameClient();
-                client.connect("127.0.0.1", PORT);
+                for (int i = 0; i < 4; i++) {
+                    testClients[i] = new GameClient();
+                    testClients[i].connect("127.0.0.1", PORT);
+                }
             }, 1000);
         } else {
             // Listen for a server on the network, then connect
