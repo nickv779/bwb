@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.net.Socket;
 
 public class GameClient {
-  public static final String TAG = "Game Client";
+  public static final String TAG = "GameClient";
 
   private Socket socket;
   private boolean connected = false;

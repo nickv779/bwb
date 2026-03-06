@@ -2,6 +2,7 @@ package com.ex.bwb;
 
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.ex.bwb.networking.GameClient;
@@ -20,14 +21,14 @@ public class MainActivity extends GyroscopicActivity {
         super.onCreate(savedInstanceState);
 
         // Start server on this device
-        server = new GameServer(5555);
+        server = new GameServer(5556);
         server.start();
         Log.d(TAG, "Server starting...");
 
         // Wait a second for server to spin up, then connect as a client
-        new Handler().postDelayed(() -> {
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
             client = new GameClient();
-            client.connect("127.0.0.1", 5555);
+            client.connect("127.0.0.1", 5556);
             Log.d(TAG, "Client connecting...");
         }, 1000);
     }

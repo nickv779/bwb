@@ -24,7 +24,9 @@ public class GameServer {
         running = true;
         new Thread(() -> {
             try {
-                serverSocket = new ServerSocket(port);
+                serverSocket = new ServerSocket();
+                serverSocket.setReuseAddress(true);
+                serverSocket.bind(new java.net.InetSocketAddress(port));
                 Log.d(TAG, "Server started on port " + port);
 
                 while (running && clients.size() < MAX_PLAYERS) {
