@@ -1,5 +1,6 @@
 package com.ex.bwb;
 
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -21,11 +22,18 @@ public class MainActivity extends GyroscopicActivity {
     private GameServer server;
     private GameClient client;
     private ServerDiscovery discovery;
+    private WifiManager.MulticastLock multicastLock;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         discovery = new ServerDiscovery();
+
+        // Acquire multicast lock
+        WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+        multicastLock = wifi.createMulticastLock("bwb_lock");
+        multicastLock.setReferenceCounted(true);
+        multicastLock.acquire();
 
         if (IS_HOST) {
             // Start server and broadcast
@@ -65,5 +73,8 @@ public class MainActivity extends GyroscopicActivity {
         if (discovery != null) discovery.stop();
         if (client != null) client.disconnect();
         if (server != null) server.stop();
+        if (multicastLock != null && multicastLock.isHeld()) {
+            multicastLock.release();
+        }
     }
 }
