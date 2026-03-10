@@ -20,6 +20,18 @@ public class GameClient {
   private boolean connected = false;
   private int myPlayerId = -1;
 
+  public interface GameEventListener {
+    void onGameStarted(int playerId);
+    void onTurnUpdate(String message);
+    void onMyTurn();
+  }
+
+  private GameEventListener listener;
+
+  public void setGameEventListener(GameEventListener listener) {
+    this.listener = listener;
+  }
+
   public void connect(String serverIP, int port) {
     new Thread(() -> {
       try {
@@ -59,15 +71,18 @@ public class GameClient {
 
       case GAME_START:
         Log.d(TAG, "[Player " + myPlayerId + "] Game has started!");
+        if (listener != null) listener.onGameStarted(myPlayerId);
         break;
 
       case YOUR_TURN:
         Log.d(TAG, "[Player " + myPlayerId + "] It's my turn!");
+        if (listener != null) listener.onMyTurn();
         break;
 
       case STATE_UPDATE:
         StateUpdatePacket state = (StateUpdatePacket) packet;
         Log.d(TAG, "[Player " + myPlayerId + "] State update: " + state.message);
+        if (listener != null) listener.onTurnUpdate(state.message);
         break;
 
       case ACTION_REJECTED:

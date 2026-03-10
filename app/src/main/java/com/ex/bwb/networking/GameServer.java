@@ -18,7 +18,7 @@ import java.util.List;
 
 public class GameServer {
   private static final String TAG = "GameServer";
-  private static final int MAX_PLAYERS = 4;
+  private static final int MAX_PLAYERS = 3;
 
   private ServerSocket serverSocket;
   private List<ClientConnection> clients = new ArrayList<>();
