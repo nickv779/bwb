@@ -1,4 +1,4 @@
-package com.ex.bwb;
+package com.ex.bwb.game;
 
 public class GameState {
     public GameState() {
