@@ -14,9 +14,10 @@ import com.ex.bwb.networking.packets.PlayCardPacket;
 import com.ex.bwb.networking.packets.PunchPacket;
 import com.ex.bwb.networking.ServerDiscovery;
 
+import gl.activities.GLActivity;
 import gl.activities.GyroscopicActivity;
 
-public class MainActivity extends GyroscopicActivity {
+public class MainActivity extends GLActivity {
   private static final String TAG = "MainActivity";
   private static final int PORT = 5556;
 
