@@ -1,4 +1,4 @@
-package com.ex.bwb;
+package com.ex.bwb.game;
 
 import com.ex.bwb.cards.BigBuddy;
 import com.ex.bwb.cards.Card;
