@@ -18,8 +18,6 @@ public class GameController {
         // Initialize deck
         Card[] deck = initializeCards(this.gameState.DECK_SIZE);
         shuffleCards(deck);
-
-
     }
 
     private Card[] initializeCards(int deckSize) {
