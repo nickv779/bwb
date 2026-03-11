@@ -1,7 +1,7 @@
 package com.ex.bwb.cards;
 
 import gl.shaders.Texture;
-import com.ex.bwb.Player;
+import com.ex.bwb.game.Player;
 import com.ex.bwb.GameController;
 
 public class Attack extends Card {
