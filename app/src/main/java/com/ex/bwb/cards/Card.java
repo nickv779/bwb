@@ -17,6 +17,8 @@ public abstract class Card {
         this.artwork = artwork;
     }
 
-    // public abstract void play(GameState state, Player user);
+    public String getName() { return this.name; }
+    public String getDesc() { return this.description; }
+    public String getTag() { return this.tagLine; }
 }
 
