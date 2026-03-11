@@ -1,21 +1,23 @@
 package com.ex.bwb.game;
 
+import com.ex.bwb.cards.Action;
 import com.ex.bwb.cards.Attack;
 import com.ex.bwb.cards.Card;
+import com.ex.bwb.cards.Effects;
 
 import java.util.Random;
 
 public class GameController {
-    public GameController() {}
 
-    void startGame(GameState gameState) {
+    GameState gameState;
+    public GameController(GameState gameState) { this.gameState = gameState; }
+
+    public void startGame() {
         // Initialize players
 
         // Initialize deck
-        Card[] deck = initializeCards(gameState.DECK_SIZE);
+        Card[] deck = initializeCards(this.gameState.DECK_SIZE);
         shuffleCards(deck);
-
-
     }
 
     private Card[] initializeCards(int deckSize) {
@@ -27,6 +29,11 @@ public class GameController {
                 null,
                 1,
                 "LEFT");
+        cards[1] = new Action("Bed Time",
+                "The player who goes next gets skipped.",
+                "Have a Short Rest",
+                null,
+                Effects::BedTime);
         return cards;
     }
 
@@ -40,4 +47,13 @@ public class GameController {
             cards[j] = temp;
         }
     }
+
+    // below is used for any turn-affecting card
+    // change the current user by some shift, i.e. shift == 1 to skip
+    // the next player, this might change depending on how currentPlayer
+    // is incremented in later implementation
+    public void changeTurn(int shift) {
+        this.gameState.currentPlayer = (this.gameState.currentPlayer) % 4;
+    }
+
 }
