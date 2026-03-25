@@ -17,9 +17,7 @@ public class J4Q {
 
     private static HashMap<Integer,Mesh> objects=new HashMap<>();
     public static GameObject getObject(int ID){Mesh m=objects.get(ID);
-       // Log.d("Angelos","ID:="+ID+" Mesh="+m);
         if(m==null) return null; else{
-         //   Log.d("Angelos","Object="+m.gameObject);
             return m.gameObject;
         }
     }
