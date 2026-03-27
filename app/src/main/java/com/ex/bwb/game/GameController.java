@@ -360,7 +360,8 @@ public class GameController {
     public void drawDeck(int amount){
         //this.gameState.currentPlayer.hand.add(amount);
         for (int i = 0; i < amount; i++){
-            gameState.drawPile.pop();
+            Card specificCard = this.gameState.drawPile.pop();
+            this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
         }
     }
     public void drawDiscard(int amount, int cardID){
@@ -371,6 +372,7 @@ public class GameController {
     }
 
     public void drawDeckSpecific(int amount,  Card[] cardID){
+        // 1. find the card in draw pile
         for (int i = 0; i < amount; i++){
             //this.gameState.currentPlayer.hand.add(amount);
             //gameState.discardPile.pop(Card[cardID]);

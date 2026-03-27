@@ -4,6 +4,9 @@ import com.ex.bwb.cards.BigBuddy;
 import com.ex.bwb.cards.Card;
 import com.ex.bwb.cards.LilBuddy;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Player {
 
     int maxHP;
@@ -13,7 +16,7 @@ public class Player {
     boolean doubleDraw;
     BigBuddy bigBuddy;
     LilBuddy[] lilBuddies;
-    Card[] hand;
+    List<Card> hand;
     public Player(BigBuddy bigBuddy) {
         this.maxHP = 5;
         this.currHP = 5;
@@ -40,4 +43,6 @@ public class Player {
     }
 
     public void changeHealth(int amount) { this.currHP += amount; }
+
+    public void addCard(Card card) { hand.add(card); }
 }
