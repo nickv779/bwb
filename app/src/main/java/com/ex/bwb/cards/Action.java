@@ -10,7 +10,7 @@ import gl.shaders.Texture;
 public class Action extends Card {
 
     BiConsumer<Player, GameController> effect;
-    public Action(String name, String description, String tagLine, Texture artwork,
+    public Action(String name, String description, String tagLine, CardType type, Texture artwork,
                   BiConsumer<Player, GameController> effect) {
         super(name, description, tagLine, CardType.ACTION, artwork);
         this.effect = effect;

@@ -38,4 +38,6 @@ public class Player {
                 this.doubleDraw = true;
         }
     }
+
+    public void changeHealth(int amount) { this.currHP += amount; }
 }
