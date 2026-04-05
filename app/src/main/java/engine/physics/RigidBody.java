@@ -1,11 +1,11 @@
-package j4q.physics;
+package engine.physics;
 
 import javax.vecmath.Vector3f;
 
+import engine.geometry.Transform;
+import engine.models.Component;
+import engine.models.GameObject;
 import engine.J4Q;
-import j4q.geometry.Transform;
-import j4q.models.Component;
-import j4q.models.GameObject;
 
 public class RigidBody extends Component {
 

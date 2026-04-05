@@ -1,4 +1,4 @@
-package j4q.models;
+package engine.models;
 
 import android.opengl.GLES30;
 
@@ -10,7 +10,7 @@ import java.util.ArrayList;
 
 import engine.J4Q;
 
-public class Mesh extends Component{
+public class Mesh extends Component {
 
     public int triangleLength=0;
 

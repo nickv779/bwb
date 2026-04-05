@@ -1,4 +1,4 @@
-package j4q.shaders;
+package engine.shaders;
 
 import android.content.Context;
 import android.opengl.GLES30;
@@ -7,9 +7,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import engine.models.Component;
+import engine.models.Mesh;
 import engine.J4Q;
-import j4q.models.Component;
-import j4q.models.Mesh;
 
 public class Shader extends Component {
 

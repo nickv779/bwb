@@ -3,7 +3,7 @@ package j4q.activities;
 import android.app.NativeActivity;
 import android.opengl.GLES31;
 
-import j4q.J4Q;
+import engine.J4Q;
 
 public abstract class QuestActivity extends NativeActivity implements GameEngineActivity {
 

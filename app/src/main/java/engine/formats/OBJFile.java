@@ -1,4 +1,4 @@
-package j4q.formats;
+package engine.formats;
 
 import android.content.Context;
 
@@ -9,9 +9,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import engine.models.GameObject;
+import engine.models.Mesh;
 import engine.J4Q;
-import j4q.models.Mesh;
-import j4q.models.GameObject;
 
 public class OBJFile {
 

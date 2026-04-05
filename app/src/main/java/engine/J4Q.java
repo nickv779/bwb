@@ -1,16 +1,15 @@
-package j4q;
+package engine;
 
 import android.content.Context;
-
 import java.util.HashMap;
 
-import j4q.activities.GameEngineScene;
-import j4q.controllers.J4QLeftController;
-import j4q.controllers.J4QRightController;
-import j4q.controllers.TouchScreen;
-import j4q.models.GameObject;
-import j4q.models.Mesh;
-import j4q.physics.PhysicsEngine;
+import engine.activities.GameEngineScene;
+import engine.controllers.J4QLeftController;
+import engine.controllers.J4QRightController;
+import engine.controllers.TouchScreen;
+import engine.models.GameObject;
+import engine.models.Mesh;
+import engine.physics.PhysicsEngine;
 
 public class J4Q {
 

@@ -1,4 +1,4 @@
-package j4q.shaders;
+package engine.shaders;
 
 import android.content.Context;
 import android.graphics.Bitmap;

@@ -1,8 +1,8 @@
-package j4q.controllers;
+package engine.controllers;
 
 import engine.J4Q;
 
-public class J4QLeftController extends J4QController{
+public class J4QLeftController extends J4QController {
     public J4QToggleButton buttonX=new J4QToggleButton();
     public J4QToggleButton buttonY=new J4QToggleButton();
     public J4QToggleButton buttonMenu=new J4QToggleButton();

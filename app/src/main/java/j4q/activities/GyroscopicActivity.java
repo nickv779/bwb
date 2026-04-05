@@ -33,7 +33,7 @@ import java.util.Arrays;
 
 import javax.microedition.khronos.opengles.GL10;
 
-import j4q.J4Q;
+import engine.J4Q;
 import j4q.geometry.Transform;
 
 public abstract class GyroscopicActivity extends GLActivity implements SensorEventListener {

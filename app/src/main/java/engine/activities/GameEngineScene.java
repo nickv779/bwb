@@ -1,4 +1,4 @@
-package j4q.activities;
+package engine.activities;
 
 import android.opengl.GLES30;
 
@@ -8,8 +8,8 @@ import java.nio.FloatBuffer;
 import java.util.Date;
 
 import engine.J4Q;
-import j4q.geometry.Transform;
-import j4q.models.GameObject;
+import engine.geometry.Transform;
+import engine.models.GameObject;
 
 public class GameEngineScene {
 
