@@ -14,6 +14,8 @@ public class Player {
     int maxAP;
     int currAP;
     boolean doubleDraw;
+
+    boolean showHand;
     BigBuddy bigBuddy;
     LilBuddy[] lilBuddies;
     List<Card> hand;
@@ -45,4 +47,15 @@ public class Player {
     public void changeHealth(int amount) { this.currHP += amount; }
 
     public void addCard(Card card) { hand.add(card); }
+
+    public Card removeCard(int card) {
+        Card specificCard = hand.get(card);
+        hand.remove(card);
+        return specificCard;
+    }
+
+
+    public void stopBenefits(int cooldown){ cooldown++; } //temporary TODO: proper implementation
+
+    public void showHand(boolean showHand){ this.showHand = showHand; }
 }
