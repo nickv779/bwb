@@ -34,9 +34,18 @@ android {
 }
 
 dependencies {
-    implementation("androidx.multidex:multidex:2.0.1")
-    implementation("androidx.annotation:annotation:1.7.1")
-    implementation("androidx.core:core:1.6.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation(libs.multidex)
+    implementation(libs.annotation)
+    implementation(libs.core)
+    implementation(libs.constraintlayout.v214)
+
+    implementation(libs.appcompat)
+    implementation(libs.material)
+    implementation(libs.activity)
+    implementation(libs.constraintlayout)
+    implementation(libs.ui.text)
+
+    implementation(libs.jbullet)
     testImplementation(libs.junit)
+
 }
