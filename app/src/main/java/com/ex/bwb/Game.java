@@ -53,13 +53,13 @@ public class Game extends GLActivity {
 
     private void onButtonClick() {
         // X happens here
-        scene.background(1f, 0f, 0f); // example: turn background red on click
+        scene.background(1, 1, 0); // example: turn background red on click
     }
 
     @Override
     public void Start() {
         // GL surface is ready here — safe to call GL stuff
-        scene.background(0.1f, 0.1f, 0.1f); // dark gray background
+        scene.background(0, 0, 0); // dark gray background
     }
 
     @Override
