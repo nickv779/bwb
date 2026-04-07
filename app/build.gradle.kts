@@ -43,7 +43,6 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
-    implementation(libs.ui.text)
 
     implementation(libs.jbullet)
     testImplementation(libs.junit)

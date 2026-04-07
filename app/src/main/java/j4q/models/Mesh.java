@@ -8,7 +8,7 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
-import engine.J4Q;
+import j4q.J4Q;
 
 public class Mesh extends Component{
 

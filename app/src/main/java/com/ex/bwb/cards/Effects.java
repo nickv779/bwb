@@ -14,7 +14,7 @@ public class Effects {
         //input =
         //gameController.drawDiscard(1, input);
     }
-    public static void BeachEpisode(Player source, GameController gameController, ) {
+    public static void BeachEpisode(Player source, GameController gameController) {
         //input =
         //gameController.drawDiscard(1, input);
     }
