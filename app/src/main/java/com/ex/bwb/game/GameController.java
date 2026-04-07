@@ -11,6 +11,7 @@ import com.ex.bwb.cards.Objective;
 import com.ex.bwb.cards.ShakeUp;
 import com.ex.bwb.cards.Signature;
 
+import java.util.List;
 import java.util.Random;
 import java.util.Stack;
 
@@ -354,26 +355,25 @@ public class GameController {
     // change the current user by some shift, i.e. shift == 1 to skip
     // the next player, this might change depending on how currentPlayer
     // is incremented in later implementation
+
     public void changeTurn(int shift) {
         this.gameState.currentPlayer = (this.gameState.currentPlayer) % 4;
     }
     public void drawDeck(int amount){
-        //this.gameState.currentPlayer.hand.add(amount);
         for (int i = 0; i < amount; i++){
-            gameState.drawPile.pop();
+            Card specificCard = this.gameState.drawPile.pop();
+            this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
         }
     }
-    public void drawDiscard(int amount, int cardID){
-        for (int i = 0; i < amount; i++){
-            //this.gameState.currentPlayer.hand.add(amount);
-            //gameState.discardPile.pop(Card[cardID]);
-        }
+    public void drawDiscard(int cardID){
+            Card specificCard = this.gameState.discardPile.remove(cardID);
+            this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
     }
 
-    public void drawDeckSpecific(int amount,  Card[] cardID){
+    public void drawDeckSpecific(int amount, int cardID){
         for (int i = 0; i < amount; i++){
-            //this.gameState.currentPlayer.hand.add(amount);
-            //gameState.discardPile.pop(Card[cardID]);
+            Card specificCard = this.gameState.drawPile.remove(cardID);
+            this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
         }
     }
 
@@ -381,6 +381,38 @@ public class GameController {
         target.changeHealth(changeAmount);
     }
 
+    public void stopBenefits(Player target, int cooldown){
+        int i = 0;
+        while (i < cooldown){
+            //target = not effected or something idk, but i image some sort of bool
+            i++;
+        }
+    }
+
+    public void handVisibility (List<Integer> targets, boolean handVisible){
+        for (int i = 0; i < targets.size(); i++){
+            this.gameState.players[targets.get(i)].showHand(handVisible);
+        }
+    }
+
+    public void stealCard(List<Integer> targets, int amountPer, int cardID) {
+        for (int i = 0; i < targets.size(); i++){
+            for (int j = 0; j < amountPer; j++) {
+                Card specificCard = this.gameState.players[i].removeCard(cardID);
+                this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
+            }
+        }
+    }
+
+    public void swapCard (int target, int amount, List<Integer> cardIDs) {
+//
+//                Card specificCard = this.gameState.players[i].removeCard(cardIDs.get(j));
+//                this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
+//
+//         //TODO: Fix implementation cause something fishy is going on :(
+    }
+
+    public void rotateHands () {}
 
 }
 
