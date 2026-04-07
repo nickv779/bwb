@@ -16,6 +16,7 @@ uiText = "1.10.4"
 
 [libraries]
 annotation = { module = "androidx.annotation:annotation", version.ref = "annotation" }
+constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 constraintlayout-v214 = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayoutVersion" }
 core = { module = "androidx.core:core", version.ref = "core" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
