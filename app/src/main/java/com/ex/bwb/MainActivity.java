@@ -25,7 +25,8 @@ import gl.shaders.TextureShader;
 public class MainActivity extends GLActivity {
   private static final String TAG = "MainActivity";
 
-  private static final boolean IS_HOST = false;
+  enum Mode { CLIENT, HOST, TEST_4P }
+  private static final Mode MODE = Mode.CLIENT;
   private static final int PORT = 5556;
 
   private GameServer server;
@@ -37,6 +38,7 @@ public class MainActivity extends GLActivity {
   private volatile String pendingStatus = null;
   private GestureDetector gestureDetector;
   private Paint textPaint;
+  private GameClient[] testClients;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -60,29 +62,67 @@ public class MainActivity extends GLActivity {
 
     discovery = new ServerDiscovery();
 
-    if (IS_HOST) {
-      server = new GameServer(PORT);
-      server.start();
-      discovery.startBroadcasting("BuddiesWithBenefits", PORT);
-      Log.d(TAG, "Hosting game...");
-      updateStatus("Hosting game... Waiting for players...");
+    switch (MODE) {
+      case HOST:
+        server = new GameServer(PORT);
+        server.start();
+        discovery.startBroadcasting("BuddiesWithBenefits", PORT);
+        Log.d(TAG, "Hosting game...");
+        updateStatus("Hosting... Waiting for players...");
 
-      new Handler(Looper.getMainLooper()).postDelayed(() -> {
-        client = new GameClient();
-        setupClientListener(client);
-        client.connect("127.0.0.1", PORT);
-      }, 1000);
-    }
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+          client = new GameClient();
+          setupClientListener(client);
+          client.connect("127.0.0.1", PORT);
+        }, 1000);
+        break;
 
-    else {
-      Log.d(TAG, "Searching for game...");
-      discovery.listenForServers((serverIP, tcpPort, gameName) -> {
-        Log.d(TAG, "Found game: " + gameName + " at " + serverIP + ":" + tcpPort);
-        updateStatus("Found game! Connecting...");
-        client = new GameClient();
-        setupClientListener(client);
-        client.connect(serverIP, tcpPort);
-      });
+      case TEST_4P:
+        server = new GameServer(PORT);
+        server.start();
+        Log.d(TAG, "Test mode: server + 4 local clients");
+        updateStatus("Test mode: connecting 4 players...");
+
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+          testClients = new GameClient[4];
+          for (int i = 0; i < 4; i++) {
+            testClients[i] = new GameClient();
+            int idx = i;
+            testClients[i].setGameEventListener(new GameClient.GameEventListener() {
+              @Override
+              public void onGameStarted(int playerId) {
+                Log.d(TAG, "[Test P" + playerId + "] Game started");
+              }
+              @Override
+              public void onTurnUpdate(String message) {
+                Log.d(TAG, "[Test] " + message);
+                updateStatus(message);
+              }
+              @Override
+              public void onMyTurn() {
+                Log.d(TAG, "[Test P" + idx + "] My turn!");
+                updateStatus("Player " + idx + "'s turn");
+              }
+            });
+            testClients[i].connect("127.0.0.1", PORT);
+          }
+          // Use first client as the main one for double-tap
+          client = testClients[0];
+        }, 1000);
+        break;
+
+      case CLIENT:
+      default:
+        Log.d(TAG, "Searching for game...");
+        updateStatus("Searching for game...");
+        discovery.listenForServers((serverIP, tcpPort, gameName) -> {
+          Log.d(TAG, "Found game: " + gameName + " at " + serverIP + ":" + tcpPort);
+          updateStatus("Found game! Connecting...");
+          client = new GameClient();
+          setupClientListener(client);
+          client.connect(serverIP, tcpPort);
+        });
+        break;
     }
   }
 
@@ -132,6 +172,11 @@ public class MainActivity extends GLActivity {
     super.onDestroy();
     if (discovery != null) discovery.stop();
     if (client != null) client.disconnect();
+    if (testClients != null) {
+      for (GameClient c : testClients) {
+        if (c != null) c.disconnect();
+      }
+    }
     if (server != null) server.stop();
     if (multicastLock != null && multicastLock.isHeld()) {
       multicastLock.release();
