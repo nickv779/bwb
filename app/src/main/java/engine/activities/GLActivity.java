@@ -29,35 +29,37 @@ public abstract class GLActivity extends Activity implements GameEngineActivity,
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        J4Q.touchScreen=new TouchScreen();
+        J4Q.touchScreen = new TouchScreen();
 
-        ConstraintLayout layout=new ConstraintLayout(this);
+        ConstraintLayout layout = new ConstraintLayout(this);
 
-        textureView=new TextureView(this);
-        textureView.layout(0,0,0,0);
+        textureView = new TextureView(this);
+        textureView.layout(0, 0, 0, 0);
         layout.addView(textureView);
 
-        surfaceView=new GLSurfaceView(this);
-        surfaceView.layout(0,0,0,0);
+        surfaceView = new GLSurfaceView(this);
+
+
+        ConstraintLayout.LayoutParams svParams = new ConstraintLayout.LayoutParams(
+                ConstraintLayout.LayoutParams.MATCH_PARENT,
+                ConstraintLayout.LayoutParams.MATCH_PARENT
+        );
+        surfaceView.setLayoutParams(svParams);
         layout.addView(surfaceView);
 
         setContentView(layout);
 
         surfaceView.setEGLContextClientVersion(3);
-        surfaceView.setZOrderOnTop(true);
-        surfaceView.setEGLConfigChooser(8,8,8,8,16,0);
+
+        surfaceView.setZOrderMediaOverlay(true);
+        surfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
         surfaceView.getHolder().setFormat(PixelFormat.RGBA_8888);
 
-
-        // my_renderer.showCamera(findViewById(R.id.textureView));
-        J4Q.activity=this;
-        J4Q.physicsEngine=new PhysicsEngine();
-        scene=new GameEngineScene(this);
+        J4Q.activity = this;
+        J4Q.physicsEngine = new PhysicsEngine();
+        scene = new GameEngineScene(this);
         surfaceView.setRenderer(this);
         surfaceView.setOnTouchListener(J4Q.touchScreen);
-
-
-
     }
 
     @Override
