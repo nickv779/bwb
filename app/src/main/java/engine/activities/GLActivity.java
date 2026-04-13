@@ -17,13 +17,14 @@ import engine.J4Q;
 import engine.controllers.TouchScreen;
 import engine.physics.PhysicsEngine;
 
-public abstract class GLActivity extends Activity implements GameEngineActivity,GLSurfaceView.Renderer{
+public abstract class GLActivity extends Activity implements GameEngineActivity, GLSurfaceView.Renderer {
 
     public GameEngineScene scene;
     private GLSurfaceView surfaceView;
     private TextureView textureView;
-    public GLSurfaceView getSurfaceView(){return surfaceView;}
-    public TextureView getTextureView(){return textureView;}
+
+    public GLSurfaceView getSurfaceView() { return surfaceView; }
+    public TextureView getTextureView() { return textureView; }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,7 +40,6 @@ public abstract class GLActivity extends Activity implements GameEngineActivity,
 
         surfaceView = new GLSurfaceView(this);
 
-
         ConstraintLayout.LayoutParams svParams = new ConstraintLayout.LayoutParams(
                 ConstraintLayout.LayoutParams.MATCH_PARENT,
                 ConstraintLayout.LayoutParams.MATCH_PARENT
@@ -50,7 +50,6 @@ public abstract class GLActivity extends Activity implements GameEngineActivity,
         setContentView(layout);
 
         surfaceView.setEGLContextClientVersion(3);
-
         surfaceView.setZOrderMediaOverlay(true);
         surfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
         surfaceView.getHolder().setFormat(PixelFormat.RGBA_8888);
@@ -63,38 +62,35 @@ public abstract class GLActivity extends Activity implements GameEngineActivity,
     }
 
     @Override
-    public void onDestroy(){
+    public void onDestroy() {
         super.onDestroy();
         destroy();
     }
 
-    public void destroy(){
+    public void destroy() {}
 
-    }
+    private int screen_width = 0;
+    private int screen_height = 0;
 
-
-    private int screen_width=0;
-    private int screen_height=0;
-
-    public int getScreenWidth(){return screen_width;}
-    public int getScreenHeight(){return screen_height;}
+    public int getScreenWidth() { return screen_width; }
+    public int getScreenHeight() { return screen_height; }
 
     public void onSurfaceChanged(GL10 unused, int width, int height) {
-        screen_width=width;
-        screen_height=height;
+        screen_width = width;
+        screen_height = height;
         GLES30.glViewport(0, 0, width, height);
 
-        float[] mProjectionMatrix=new float[16];
+        float[] mProjectionMatrix = new float[16];
         float ratio = (float) width / height;
-        Matrix.frustumM(mProjectionMatrix, 0, -ratio*0.1f, ratio*0.1f, -0.1f, 0.1f, 0.1f, 1024);
+        // Use a standard perspective matrix
+        Matrix.perspectiveM(mProjectionMatrix, 0, 45.0f, ratio, 0.1f, 1000.0f);
 
         scene.setupProjection(mProjectionMatrix);
-        J4Q.touchScreen.setup(width,height);
+        J4Q.touchScreen.setup(width, height);
     }
 
-
-    public void renderObjectPicker(){
-        if(J4Q.touchScreen.fingers_down>0) {
+    public void renderObjectPicker() {
+        if (J4Q.touchScreen.fingers_down > 0) {
             J4Q.touchScreen.capture(scene);
         }
     }
@@ -104,8 +100,11 @@ public abstract class GLActivity extends Activity implements GameEngineActivity,
     }
 
     public void onDrawFrame(GL10 unused) {
+        // Update the scene logic (per-frame animations, physics, etc.)
         scene.update();
-        scene.view.identity();
+        
+        // The actual drawing is delegated to the scene, which will call root.draw()
+        // and any active SceneManager scenes.
         scene.draw();
     }
 }
