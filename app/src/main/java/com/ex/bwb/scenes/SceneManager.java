@@ -17,8 +17,7 @@ public class SceneManager {
     private volatile Scene pendingScene = null;
 
     // Private constructor
-    private SceneManager() {
-    }
+    private SceneManager() {}
 
     public static SceneManager get() {
         if (instance == null) instance = new SceneManager();
@@ -57,7 +56,6 @@ public class SceneManager {
 
 
     public void draw() {
-        // If a new scene is pending, initialize it on the GL thread first
         if (pendingEnter && pendingScene != null) {
             pendingEnter = false;
             pendingScene.onEnter();
