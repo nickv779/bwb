@@ -42,7 +42,6 @@ public class GameController {
     // -------------------------------------------------------------------------
     // TURN MANAGEMENT
     // -------------------------------------------------------------------------
-
     public void startTurn() {
         Player current = players[state.currentPlayer];
 

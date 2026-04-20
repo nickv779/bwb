@@ -26,7 +26,7 @@ public class MainActivity extends GLActivity {
   private static final String TAG = "MainActivity";
 
   enum Mode { CLIENT, HOST, TEST_4P }
-  private static final Mode MODE = Mode.CLIENT;
+  private static final Mode MODE = Mode.TEST_4P;
   private static final int PORT = 5556;
 
   private GameServer server;
@@ -100,8 +100,11 @@ public class MainActivity extends GLActivity {
               }
               @Override
               public void onMyTurn() {
-                Log.d(TAG, "[Test P" + idx + "] My turn!");
-                updateStatus("Player " + idx + "'s turn");
+                // FIXED: was using idx (creation order) which doesn't reliably
+                // match playerId since connections are async — use actual playerId instead
+                int myId = testClients[idx].getMyPlayerId();
+                Log.d(TAG, "[Test P" + myId + "] My turn!");
+                updateStatus("Player " + myId + "'s turn");
               }
             });
             testClients[i].connect("127.0.0.1", PORT);

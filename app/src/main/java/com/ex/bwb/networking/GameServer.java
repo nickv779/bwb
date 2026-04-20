@@ -2,6 +2,9 @@ package com.ex.bwb.networking;
 
 import android.util.Log;
 
+import com.ex.bwb.Player;
+import com.ex.bwb.cards.BigBuddy;
+import com.ex.bwb.cards.CardType;
 import com.ex.bwb.game.GameController;
 import com.ex.bwb.game.GameState;
 import com.ex.bwb.networking.packets.Packet;
@@ -54,6 +57,7 @@ public class GameServer {
   }
 
   public void start() {
+    if (running) return;
     running = true;
     new Thread(() -> {
       try {
@@ -71,20 +75,24 @@ public class GameServer {
                   + clients.size() + "/" + MAX_PLAYERS + ")");
         }
 
-        Log.d(TAG, "All players connected! Starting game.");
+        Log.d(TAG, "All players connected! Starting game."); // FIXED: now appears exactly once
 
-        for (ClientConnection conn : clients) {
+        for (ClientConnection conn : clients) {             // FIXED: now called exactly once
           startListening(conn);
         }
 
-        for (ClientConnection conn : clients) {
+        for (ClientConnection conn : clients) {             // FIXED: now called exactly once
           Packet startPacket = new Packet(PacketType.GAME_START, conn.playerId);
           conn.out.writeObject(startPacket);
           conn.out.flush();
         }
 
-        // ADDED: start the first turn and sync state to all clients
-        gameController.startTurn();
+        gameController.players[0] = new Player(new BigBuddy("Darrel",     "Start with +1 Temporary HP.",                       "", CardType.BIG_BUDDY, null));
+        gameController.players[1] = new Player(new BigBuddy("Fernando",   "Draw 2 cards at the start of your turn instead of 1.", "", CardType.BIG_BUDDY, null));
+        gameController.players[2] = new Player(new BigBuddy("Gerald",     "Have +1 Lil' Buddy",                                "", CardType.BIG_BUDDY, null));
+        gameController.players[3] = new Player(new BigBuddy("Mr. Ostrich","Have +1 Action Point",                              "", CardType.BIG_BUDDY, null));
+
+        gameController.startTurn();                          // FIXED: now called exactly once
         broadcastState("Game started — Player 0's turn");
         notifyCurrentPlayer();
 
