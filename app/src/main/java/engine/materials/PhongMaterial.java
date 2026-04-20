@@ -8,60 +8,68 @@ public class PhongMaterial extends Shader {
 
     public PhongMaterial(){
         super(
-                "uniform SceneMatrices\n"+
+                        "#version 300 es\n" +
+                        "uniform SceneMatrices\n"+
                         "{\n"+
-                        "	uniform mat4 ViewMatrix;\n"+
-                        "	uniform mat4 ProjectionMatrix;\n"+
-                        "   uniform vec3 uLightDir;\n"+
+                        "	mat4 ViewMatrix;\n"+
+                        "	mat4 ProjectionMatrix;\n"+
+                        "   mat4 NormalMatrix;\n"+
+                        "   vec4 uLightDir;\n"+
                         "} sm;\n"+
-                        "uniform mat4 localTransform;\n"+
-                        "in vec3 aNormal;"+
-                        "out vec3 vNormal;"+
+                        "uniform mat4 modelMatrix;\n"+
+                        "uniform mat4 normalMatrix;\n"+
                         "in vec3 aPosition;\n"+
+                        "in vec3 aNormal;\n"+
                         "in vec3 aColor;\n"+
+                        "out vec3 vNormal;\n"+
                         "out vec3 vColor;\n"+
-                        "out vec3 vE;"+
+                        "out vec3 vE;\n"+
                         "void main()\n"+
                         "{\n"+
-                        " vec4 tN=normalize(localTransform *vec4(aNormal,0.0));" +
-                        "vNormal=vec3(tN.x,tN.y,tN.z);"+
-                        "vec4 p=sm.ViewMatrix *localTransform*  vec4( aPosition , 1.0 );"+
-                        "	gl_Position = sm.ProjectionMatrix * p;\n"+
-                        "vE=normalize(vec3(p));"+
-                        "	vColor = aColor;\n"+
+                        "   vec4 tN = normalMatrix * vec4(aNormal, 0.0);\n" +
+                        "   vNormal = normalize(tN.xyz);\n"+
+                        "   vec4 p = sm.ViewMatrix * modelMatrix * vec4(aPosition, 1.0);\n"+
+                        "   gl_Position = sm.ProjectionMatrix * p;\n"+
+                        "   vE = normalize(-p.xyz);\n"+
+                        "   vColor = aColor;\n"+
                         "}\n",
 
-                "uniform SceneMatrices\n"+
+                "#version 300 es\n"+
+                        "precision mediump float;\n"+
+                        "uniform SceneMatrices\n"+
                         "{\n"+
-                        "	uniform mat4 ViewMatrix;\n"+
-                        "	uniform mat4 ProjectionMatrix;\n"+
-                        "   uniform vec3 uLightDir;\n"+
+                        "	mat4 ViewMatrix;\n"+
+                        "	mat4 ProjectionMatrix;\n"+
+                        "   mat4 NormalMatrix;\n"+
+                        "   vec4 uLightDir;\n"+
                         "} sm;\n"+
-                        "uniform vec3 uAmbientColor;"+
-                        "uniform vec3 uDiffuseColor;"+
-                        "uniform vec3 uSpecularColor;"+
-                        "uniform float uSpecularExponent;"+
+                        "uniform vec3 uAmbientColor;\n"+
+                        "uniform vec3 uDiffuseColor;\n"+
+                        "uniform vec3 uSpecularColor;\n"+
+                        "uniform float uSpecularExponent;\n"+
 
-                        "in lowp vec3 vColor;\n"+
-                        "out lowp vec4 outColor;\n"+
-                        "in vec3 vNormal;"+
-                        "in vec3 vE;"+
+                        "in vec3 vColor;\n"+
+                        "in vec3 vNormal;\n"+
+                        "in vec3 vE;\n"+
+                        "out vec4 outColor;\n"+
 
                         "void main()\n"+
                         "{\n"+
-                        "vec3 E=normalize(vE);"+
-                        "vec4 shade=vec4(0.0,0.0,0.0,1.0);"+
-                        "shade+=vec4(uAmbientColor,1.0);"+
-                        "shade+=vec4(uDiffuseColor,1.0)*max(dot(vNormal,sm.uLightDir),0.0);"+
-                        "vec3 reflectionDirection = reflect(sm.uLightDir, vNormal);"+
-                        "shade+=vec4(uSpecularColor,1.0)*pow(max(dot(reflectionDirection, E), 0.0), uSpecularExponent);"+
-                        "  outColor = vec4(vColor,1.0)*shade;" +
-                        "}\n",new String[]{"aPosition","aColor","aNormal"});
+                        "   vec3 N = normalize(vNormal);\n"+
+                        "   vec3 E = normalize(vE);\n"+
+                        "   vec3 L = normalize(sm.uLightDir.xyz);\n"+
+                        "   vec4 shade = vec4(uAmbientColor, 1.0);\n"+
+                        "   shade += vec4(uDiffuseColor, 1.0) * max(dot(N, L), 0.0);\n"+
+                        "   vec3 R = reflect(-L, N);\n"+
+                        "   shade += vec4(uSpecularColor, 1.0) * pow(max(dot(R, E), 0.0), uSpecularExponent);\n"+
+                        "   outColor = vec4(1.0, 1.0, 1.0, 1.0) * shade;\n"+ // Hardcoded white base color for now
+                        "}\n",
+                new String[]{"aPosition", "aNormal", null, null, "aColor"});
 
-        setAmbientColor(new float[]{0.6f,0.6f,0.6f});
-        setDiffuseColor(new float[]{0.4f,0.4f,0.4f});
-        setSpecularColor(new float[]{0.4f,0.4f,0.4f});
-        setSpecularExponent(5);
+        setAmbientColor(new float[]{0.2f, 0.2f, 0.2f});
+        setDiffuseColor(new float[]{0.8f, 0.8f, 0.8f});
+        setSpecularColor(new float[]{1.0f, 1.0f, 1.0f});
+        setSpecularExponent(50);
     }
 
     public void setAmbientColor(float[] color){

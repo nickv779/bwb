@@ -4,6 +4,7 @@ plugins {
 
 android {
     namespace = "com.ex.bwb"
+    //noinspection GradleDependency
     compileSdk = 32
 
     defaultConfig {

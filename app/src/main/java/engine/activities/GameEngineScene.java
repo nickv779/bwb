@@ -46,11 +46,9 @@ public class GameEngineScene {
         bb.order(ByteOrder.nativeOrder());
         mProjectionMatrixBuffer = bb.asFloatBuffer();
 
-        ByteBuffer bb4 = ByteBuffer.allocateDirect(
-                // (# of coordinate values * 4 bytes per float)
-                mNormalMatrix.length * 4);
-        bb.order(ByteOrder.nativeOrder());
-        mNormalMatrixBuffer = bb.asFloatBuffer();
+        ByteBuffer bb4 = ByteBuffer.allocateDirect(mNormalMatrix.length * 4);
+        bb4.order(ByteOrder.nativeOrder());
+        mNormalMatrixBuffer = bb4.asFloatBuffer();
 
         view=new Transform();
 

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import engine.models.GameObject;
+import engine.models.Model;
 
 public class Transform {
     public float[] matrix=new float[16];
@@ -266,4 +267,5 @@ public class Transform {
         return popMatrix();
     }
 
+    public Transform reset(Model parent) { return identity(); }
 }
