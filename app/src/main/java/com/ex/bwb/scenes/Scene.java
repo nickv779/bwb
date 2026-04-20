@@ -6,4 +6,5 @@ public interface Scene {
     void update();            // called every frame on GL thread
     void draw();              // called every frame on GL thread
     void buildUI(android.widget.FrameLayout overlay); // called to populate UI
+    default void onTouch(android.view.MotionEvent event) {}
 }

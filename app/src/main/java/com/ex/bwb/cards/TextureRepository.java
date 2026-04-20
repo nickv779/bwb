@@ -11,7 +11,7 @@ import engine.shaders.Texture;
 public class TextureRepository {
 
     private static Bitmap repository = null;
-    private static final String cardTextures = "assets/UV_BWB_ROW.png";
+    private static final String cardTextures = "textures/UV_BWB_ROW.png";
 
     public static void init() {
         try {
@@ -33,7 +33,7 @@ public class TextureRepository {
         if (repository == null) {
             throw new RuntimeException("Texture repository not initialized.");
         }
-        Bitmap region = Bitmap.createBitmap(repository, x, 0, 750, 1000);
+        Bitmap region = Bitmap.createBitmap(repository, x, 0, 750, 1050);
         return new AtlasTexture(region);
 
     }

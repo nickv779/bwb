@@ -29,6 +29,10 @@ public class SceneManager {
         this.uiOverlay = overlay;
     }
 
+    public Scene getCurrentScene() {
+        return currentScene;
+    }
+
     // Call this from Game.onDestroy() to release context references
     public void release() {
         if (currentScene != null) currentScene.onExit();

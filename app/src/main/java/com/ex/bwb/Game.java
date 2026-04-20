@@ -1,11 +1,14 @@
 package com.ex.bwb;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.widget.FrameLayout;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.ex.bwb.scenes.*;
+
+import engine.J4Q;
 import engine.activities.GLActivity;
 
 public class Game extends GLActivity {
@@ -16,6 +19,7 @@ public class Game extends GLActivity {
         getSurfaceView().post(this::buildUI);
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private void buildUI() {
         ConstraintLayout root = (ConstraintLayout) getSurfaceView().getParent();
 
@@ -31,6 +35,13 @@ public class Game extends GLActivity {
 
         SceneManager.get().init(this, overlay);
         SceneManager.get().transitionTo(new MainMenu(this));
+
+        getSurfaceView().setOnTouchListener((v, event) -> {
+            J4Q.touchScreen.onTouch(v, event);  // existing picking logic
+            Scene current = SceneManager.get().getCurrentScene();
+            if (current != null) current.onTouch(event);  // route to scene
+            return true;
+        });
     }
 
     @Override
@@ -44,13 +55,8 @@ public class Game extends GLActivity {
 
     @Override
     public void onDrawFrame(javax.microedition.khronos.opengles.GL10 unused) {
-        // Step 1: Update the engine scene.
-        // This calculates timing, calls Game.Update() (and thus SceneManager.update()),
-        // and most importantly, it uploads model/normal matrices for all GameObjects.
         scene.update();
-
-        // Step 2: Draw the current scene via SceneManager.
-        // SceneManager calls ModelScene.draw(), which sets the camera and calls scene.draw().
+        renderObjectPicker();
         SceneManager.get().draw();
     }
 
