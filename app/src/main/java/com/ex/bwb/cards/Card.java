@@ -20,5 +20,6 @@ public abstract class Card {
     public String getName() { return this.name; }
     public String getDesc() { return this.description; }
     public String getTag() { return this.tagLine; }
+    public CardType getType() { return this.type; }
 }
 

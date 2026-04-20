@@ -2,6 +2,8 @@ package com.ex.bwb.networking;
 
 import android.util.Log;
 
+import com.ex.bwb.game.GameController;
+import com.ex.bwb.game.GameState;
 import com.ex.bwb.networking.packets.Packet;
 import com.ex.bwb.networking.packets.PacketType;
 import com.ex.bwb.networking.packets.PlayCardPacket;
@@ -18,14 +20,19 @@ import java.util.List;
 
 public class GameServer {
   private static final String TAG = "GameServer";
-  private static final int MAX_PLAYERS = 3;
+  private static final int MAX_PLAYERS = 4; // FIXED: was 3
 
   private ServerSocket serverSocket;
   private List<ClientConnection> clients = new ArrayList<>();
   private boolean running = false;
   private int port;
-  private int currentPlayerIndex = 0;
-  private int actionPointsRemaining = 3;
+
+  // ADDED: GameController is the single source of truth for game state
+  private GameController gameController;
+  private GameState gameState;
+
+  // REMOVED: currentPlayerIndex — now gameController.state.currentPlayer
+  // REMOVED: actionPointsRemaining — now players[currentPlayer].currAP
 
   private static class ClientConnection {
     Socket socket;
@@ -34,15 +41,16 @@ public class GameServer {
     int playerId;
 
     ClientConnection(Socket socket, int playerId) throws IOException {
-      this.socket = socket;
+      this.socket   = socket;
       this.playerId = playerId;
-      this.out = new ObjectOutputStream(socket.getOutputStream());
-      this.in = new ObjectInputStream(socket.getInputStream());
+      this.out      = new ObjectOutputStream(socket.getOutputStream());
+      this.in       = new ObjectInputStream(socket.getInputStream());
     }
   }
 
   public GameServer(int port) {
     this.port = port;
+    this.gameController = new GameController(); // ADDED
   }
 
   public void start() {
@@ -51,36 +59,36 @@ public class GameServer {
       try {
         serverSocket = new ServerSocket();
         serverSocket.setReuseAddress(true);
-        serverSocket.bind(new java.net.InetSocketAddress((port)));
+        serverSocket.bind(new java.net.InetSocketAddress(port));
         Log.d(TAG, "Server started on port " + port);
 
-        // Accept 4 players
         while (running && clients.size() < MAX_PLAYERS) {
           Socket socket = serverSocket.accept();
           int playerId = clients.size();
           ClientConnection conn = new ClientConnection(socket, playerId);
           clients.add(conn);
-          Log.d(TAG, "Player " + playerId + " connected (" + clients.size() + "/" + MAX_PLAYERS + ")");
+          Log.d(TAG, "Player " + playerId + " connected ("
+                  + clients.size() + "/" + MAX_PLAYERS + ")");
         }
 
         Log.d(TAG, "All players connected! Starting game.");
 
-        // Start listening threads first
         for (ClientConnection conn : clients) {
           startListening(conn);
         }
 
-        // Send each client their player ID via GAME_START
         for (ClientConnection conn : clients) {
           Packet startPacket = new Packet(PacketType.GAME_START, conn.playerId);
           conn.out.writeObject(startPacket);
           conn.out.flush();
         }
 
+        // ADDED: start the first turn and sync state to all clients
+        gameController.startTurn();
+        broadcastState("Game started — Player 0's turn");
         notifyCurrentPlayer();
-      }
 
-      catch (IOException e) {
+      } catch (IOException e) {
         Log.e(TAG, "Server error: " + e.getMessage());
       }
     }).start();
@@ -93,9 +101,7 @@ public class GameServer {
           Packet packet = (Packet) conn.in.readObject();
           handlePacket(conn.playerId, packet);
         }
-      }
-
-      catch (Exception e) {
+      } catch (Exception e) {
         Log.e(TAG, "Player " + conn.playerId + " disconnected: " + e.getMessage());
       }
     }).start();
@@ -104,9 +110,11 @@ public class GameServer {
   private synchronized void handlePacket(int playerId, Packet packet) {
     Log.d(TAG, "Received " + packet.type + " from player " + playerId);
 
-    // Turn validation
-    if (playerId != currentPlayerIndex && packet.type != PacketType.JOIN_REQUEST) {
-      Log.d (TAG, "REJECTED: Not player " + playerId + "'s turn (current: " + currentPlayerIndex + ")");
+    // Turn validation — uses GameController as source of truth
+    if (playerId != gameController.state.currentPlayer
+            && packet.type != PacketType.JOIN_REQUEST) {
+      Log.d(TAG, "REJECTED: Not player " + playerId + "'s turn (current: "
+              + gameController.state.currentPlayer + ")");
       sendTo(playerId, new Packet(PacketType.ACTION_REJECTED, playerId));
       return;
     }
@@ -114,57 +122,56 @@ public class GameServer {
     switch (packet.type) {
       case PLAY_CARD:
         PlayCardPacket pcp = (PlayCardPacket) packet;
-        Log.d(TAG, "Player " + playerId + " plays card " + pcp.cardIndex + " targeting player " + pcp.targetPlayerId);
-        // TODO: real card logic
-        actionPointsRemaining--;
-        broadcastState("Player " + playerId + " played a card on player " + pcp.targetPlayerId);
+        Log.d(TAG, "Player " + playerId + " plays card " + pcp.cardIndex
+                + " targeting player " + pcp.targetPlayerId);
+        // CHANGED: was TODO — now wired to GameController
+        gameController.input = pcp.targetPlayerId;
+        gameController.playCard(pcp.cardIndex, pcp.targetPlayerId);
         break;
 
       case DRAW_CARD:
         Log.d(TAG, "Player " + playerId + " draws a card");
-        // TODO: real draw logic
-        actionPointsRemaining--;
-        broadcastState("Player " + playerId + " drew a card");
+        // CHANGED: was TODO — now wired to GameController
+        gameController.drawCard();
         break;
 
       case PUNCH:
         PunchPacket pp = (PunchPacket) packet;
         Log.d(TAG, "Player " + playerId + " punches player " + pp.targetPlayerId);
-        // TODO: real punch logic
-        actionPointsRemaining--;
-        broadcastState("Player " + playerId + " punched player " + pp.targetPlayerId);
+        // CHANGED: was TODO — now wired to GameController
+        gameController.punch(pp.targetPlayerId);
         break;
 
       case END_TURN:
         Log.d(TAG, "Player " + playerId + " ends their turn");
-        nextTurn();
+        gameController.endTurn();
         break;
 
       default:
         Log.d(TAG, "Unhandled packet type: " + packet.type);
+        break;
     }
 
-    if (actionPointsRemaining <= 0 && packet.type != PacketType.END_TURN) {
-      Log.d(TAG, "Player " + playerId + " out of action points, auto-ending turn");
-      nextTurn();
-    }
-  }
-
-  private void nextTurn() {
-    currentPlayerIndex = (currentPlayerIndex + 1) % MAX_PLAYERS;
-    actionPointsRemaining = 3;
-    Log.d(TAG, "It is now player " + currentPlayerIndex + "'s turn");
-    broadcastState("Player " + currentPlayerIndex + "'s turn");
+    // CHANGED: broadcast after every action using actual state from GameController
+    // REMOVED: the old "if actionPointsRemaining <= 0" block — GameController handles auto end-turn
+    int currentPlayer = gameController.state.currentPlayer;
+    int apRemaining   = gameController.players[currentPlayer] != null
+            ? gameController.players[currentPlayer].currAP : 0;
+    broadcastState("Player " + currentPlayer + "'s turn — " + apRemaining + " AP");
     notifyCurrentPlayer();
   }
 
   private void notifyCurrentPlayer() {
-    sendTo(currentPlayerIndex, new Packet(PacketType.YOUR_TURN, currentPlayerIndex));
+    int current = gameController.state.currentPlayer;
+    sendTo(current, new Packet(PacketType.YOUR_TURN, current));
   }
 
   private void broadcastState(String message) {
-    StateUpdatePacket state = new StateUpdatePacket(currentPlayerIndex, actionPointsRemaining, message);
-    broadcastToAll(state);
+    int current = gameController.state.currentPlayer;
+    int ap      = gameController.players[current] != null
+            ? gameController.players[current].currAP : 0;
+    StateUpdatePacket statePacket = new StateUpdatePacket(current, ap, message);
+    broadcastToAll(statePacket);
   }
 
   private void broadcastToAll(Packet packet) {
@@ -172,9 +179,7 @@ public class GameServer {
       try {
         conn.out.writeObject(packet);
         conn.out.flush();
-      }
-
-      catch (IOException e) {
+      } catch (IOException e) {
         Log.e(TAG, "Error sending to player " + conn.playerId + ": " + e.getMessage());
       }
     }
@@ -184,9 +189,7 @@ public class GameServer {
     try {
       clients.get(playerId).out.writeObject(packet);
       clients.get(playerId).out.flush();
-    }
-
-    catch (IOException e) {
+    } catch (IOException e) {
       Log.e(TAG, "Error sending to player " + playerId + ": " + e.getMessage());
     }
   }
@@ -196,9 +199,7 @@ public class GameServer {
     try {
       if (serverSocket != null) serverSocket.close();
       for (ClientConnection c : clients) c.socket.close();
-    }
-
-    catch (IOException e) {
+    } catch (IOException e) {
       Log.e(TAG, "Error stopping server: " + e.getMessage());
     }
   }
