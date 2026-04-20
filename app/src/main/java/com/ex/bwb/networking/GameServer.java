@@ -3,8 +3,13 @@ package com.ex.bwb.networking;
 import android.util.Log;
 
 import com.ex.bwb.Player;
+import com.ex.bwb.cards.Action;
+import com.ex.bwb.cards.Attack;
 import com.ex.bwb.cards.BigBuddy;
+import com.ex.bwb.cards.Card;
 import com.ex.bwb.cards.CardType;
+import com.ex.bwb.cards.Effects;
+import com.ex.bwb.cards.Signature;
 import com.ex.bwb.game.GameController;
 import com.ex.bwb.game.GameState;
 import com.ex.bwb.networking.packets.Packet;
@@ -20,6 +25,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 public class GameServer {
   private static final String TAG = "GameServer";
@@ -92,7 +98,22 @@ public class GameServer {
         gameController.players[2] = new Player(new BigBuddy("Gerald",     "Have +1 Lil' Buddy",                                "", CardType.BIG_BUDDY, null));
         gameController.players[3] = new Player(new BigBuddy("Mr. Ostrich","Have +1 Action Point",                              "", CardType.BIG_BUDDY, null));
 
-        gameController.startTurn();                          // FIXED: now called exactly once
+        // Temporary test deck — add a few of each card type you want to test
+        Stack<Card> deck = gameController.state.drawPile;
+
+// Action cards
+        gameController.players[0] = new Player(new BigBuddy("Darrel",     "Start with +1 Temporary HP.",                        "", CardType.BIG_BUDDY, null));
+        gameController.players[1] = new Player(new BigBuddy("Fernando",   "Draw 2 cards at the start of your turn instead of 1.","", CardType.BIG_BUDDY, null));
+        gameController.players[2] = new Player(new BigBuddy("Gerald",     "Have +1 Lil' Buddy",                                 "", CardType.BIG_BUDDY, null));
+        gameController.players[3] = new Player(new BigBuddy("Mr. Ostrich","Have +1 Action Point",                               "", CardType.BIG_BUDDY, null));
+
+// Build the real deck and deal 7 cards to each player
+        gameController.buildDeck();
+        for (Player p : gameController.players) {
+          gameController.drawCards(7, p);
+        }
+
+        gameController.startTurn();
         broadcastState("Game started — Player 0's turn");
         notifyCurrentPlayer();
 
@@ -130,11 +151,32 @@ public class GameServer {
     switch (packet.type) {
       case PLAY_CARD:
         PlayCardPacket pcp = (PlayCardPacket) packet;
-        Log.d(TAG, "Player " + playerId + " plays card " + pcp.cardIndex
-                + " targeting player " + pcp.targetPlayerId);
-        // CHANGED: was TODO — now wired to GameController
+
+        // ADD: log the card name so you can see exactly what fired
+        String cardName = gameController.players[playerId].hand.get(pcp.cardIndex).getName();
+        Log.d(TAG, "Player " + playerId + " plays [" + cardName + "] targeting player " + pcp.targetPlayerId);
+
+        // ADD: snapshot HP and hand sizes before the effect
+        int[] hpBefore   = new int[gameController.players.length];
+        int[] handBefore = new int[gameController.players.length];
+        for (int i = 0; i < gameController.players.length; i++) {
+          hpBefore[i]   = gameController.players[i].currHP;
+          handBefore[i] = gameController.players[i].hand.size();
+        }
+
         gameController.input = pcp.targetPlayerId;
         gameController.playCard(pcp.cardIndex, pcp.targetPlayerId);
+
+        // ADD: log what changed after the effect
+        for (int i = 0; i < gameController.players.length; i++) {
+          int hpDelta   = gameController.players[i].currHP   - hpBefore[i];
+          int handDelta = gameController.players[i].hand.size() - handBefore[i];
+          String hpStr   = hpDelta   != 0 ? " HP:"   + (hpDelta   > 0 ? "+" : "") + hpDelta   : "";
+          String handStr = handDelta != 0 ? " Hand:" + (handDelta > 0 ? "+" : "") + handDelta : "";
+          if (!hpStr.isEmpty() || !handStr.isEmpty()) {
+            Log.d(TAG, "  → Player " + i + hpStr + handStr);
+          }
+        }
         break;
 
       case DRAW_CARD:
@@ -165,6 +207,16 @@ public class GameServer {
     int currentPlayer = gameController.state.currentPlayer;
     int apRemaining   = gameController.players[currentPlayer] != null
             ? gameController.players[currentPlayer].currAP : 0;
+    // Add this block right before broadcastState() in handlePacket()
+    for (int i = 0; i < gameController.players.length; i++) {
+      Player p = gameController.players[i];
+      if (p != null) {
+        Log.d(TAG, "  Player " + i + " — HP: " + p.currHP
+                + " | AP: " + p.currAP
+                + " | Hand: " + p.hand.size()
+                + " | Stash: " + p.stash.size());
+      }
+    }
     broadcastState("Player " + currentPlayer + "'s turn — " + apRemaining + " AP");
     notifyCurrentPlayer();
   }

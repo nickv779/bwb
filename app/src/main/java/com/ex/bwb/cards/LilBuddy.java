@@ -17,4 +17,7 @@ public class LilBuddy extends Card {
     }
     public CardEffect getEffect() { return this.effect; }
 
+    // ADD this field to LilBuddy.java
+    public boolean asleep = false;           // SleepyGiraffe
+
 }

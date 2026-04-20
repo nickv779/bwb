@@ -29,6 +29,17 @@ public class Player {
     public boolean cannotDrawNextTurn = false;
     private int cardEffectImmuneRotations = 0;
     private int lilBuddyImmuneRotations = 0;
+    // ADD these fields to Player.java
+    public boolean actionBlocked = false;         // FighterSnail
+    public int attackDamageReduction = 0;         // FiveHundredDuck / FiveHundredDucks
+    public int actionDamageBonus = 0;             // DarrelJr
+    public boolean retaliationActive = false;     // JamJellyfish
+
+    // ADD these setters to Player.java
+    public void setActionBlocked(boolean value)      { actionBlocked = value; }
+    public void setAttackDamageReduction(int amount) { attackDamageReduction = amount; }
+    public void setActionDamageBonus(int amount)     { actionDamageBonus = amount; }
+    public void setRetaliationActive(boolean value)  { retaliationActive = value; }
 
     public Player(BigBuddy bigBuddy) {
         this.maxHP = 5;

@@ -26,6 +26,9 @@ public class GameState {
     public int drawBlockedRotations = 0;         // NuclearWinter
     public boolean grantExtraTurn = false;        // ADDED: HeatDeathUniverse
     public int rockThrowCount = 0;               // GooglyEyedRock
+    // ADD these fields to GameState.java
+    public boolean rockGoesToHand = false;   // GooglyEyedRock
+    public int rockTargetIndex = -1;         // GooglyEyedRock
 
     public GameState() {
         drawPile    = new Stack<>();

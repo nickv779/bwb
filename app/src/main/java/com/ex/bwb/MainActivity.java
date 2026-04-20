@@ -14,7 +14,9 @@ import android.graphics.Color;
 import com.ex.bwb.networking.GameClient;
 import com.ex.bwb.networking.GameServer;
 import com.ex.bwb.networking.ServerDiscovery;
+import com.ex.bwb.networking.packets.DrawCardPacket;
 import com.ex.bwb.networking.packets.EndTurnPacket;
+import com.ex.bwb.networking.packets.PlayCardPacket;
 
 import gl.activities.GLActivity;
 import gl.models.Model;
@@ -44,14 +46,48 @@ public class MainActivity extends GLActivity {
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
+//    gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+//      @Override
+//      public boolean onDoubleTap(MotionEvent e) {
+//        if (client != null && client.getMyPlayerId() >= 0) {
+//          Log.d(TAG, "Double tap — ending turn");
+//          client.sendAction(new EndTurnPacket(client.getMyPlayerId()));
+//        }
+//        return true;
+//      }
+//    });
+    // In MainActivity, replace the gestureDetector with this expanded version
     gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+
       @Override
       public boolean onDoubleTap(MotionEvent e) {
+        // Double tap = end turn
         if (client != null && client.getMyPlayerId() >= 0) {
           Log.d(TAG, "Double tap — ending turn");
           client.sendAction(new EndTurnPacket(client.getMyPlayerId()));
         }
         return true;
+      }
+
+      @Override
+      public boolean onSingleTapConfirmed(MotionEvent e) {
+        // Single tap = draw a card
+        if (client != null && client.getMyPlayerId() >= 0) {
+          Log.d(TAG, "Single tap — drawing card");
+          client.sendAction(new DrawCardPacket(client.getMyPlayerId()));
+        }
+        return true;
+      }
+
+      @Override
+      public void onLongPress(MotionEvent e) {
+        // Long press = play first card in hand targeting player to the right
+        if (client != null && client.getMyPlayerId() >= 0) {
+          int myId     = client.getMyPlayerId();
+          int targetId = (myId + 1) % 4;
+          Log.d(TAG, "Long press — playing card 0 on player " + targetId);
+          client.sendAction(new PlayCardPacket(myId, 0, targetId));
+        }
       }
     });
 
