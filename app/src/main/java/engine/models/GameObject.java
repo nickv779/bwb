@@ -13,15 +13,15 @@ public class GameObject {
     private Map<Class<?>, Component> components = new HashMap<>();
 
     public <T extends Component> void addComponent(T component) {
-        if(component instanceof Mesh){
-            if(mesh!=null) components.remove(mesh);
-            mesh=(Mesh)component;
-        }else if(component instanceof Shader){
-            if(shader!=null) components.remove(shader);
-            shader=(Shader)component;
-        }else if(component instanceof RigidBody){
-            if(rigidBody!=null) components.remove(rigidBody);
-            rigidBody=(RigidBody) component;
+        if (component instanceof Mesh) {
+            if (mesh != null) components.remove(mesh.getClass());
+            mesh = (Mesh) component;
+        } else if (component instanceof Shader) {
+            if (shader != null) components.remove(shader.getClass());
+            shader = (Shader) component;
+        } else if (component instanceof RigidBody) {
+            if (rigidBody != null) components.remove(rigidBody.getClass());
+            rigidBody = (RigidBody) component;
         }
         component.gameObject = this;
         components.put(component.getClass(), component);
@@ -32,73 +32,74 @@ public class GameObject {
     }
 
     public <T extends Component> T removeComponent(Class<T> type) {
-
         Component removed = components.remove(type);
         if (removed == null) return null;
 
         if (removed instanceof Mesh && mesh == removed) {
             mesh = null;
-        }
-        else if (removed instanceof Shader && shader == removed) {
+        } else if (removed instanceof Shader && shader == removed) {
             shader = null;
-        }
-        else if (removed instanceof RigidBody && rigidBody == removed) {
+        } else if (removed instanceof RigidBody && rigidBody == removed) {
             rigidBody = null;
         }
         removed.gameObject = null;
         return type.cast(removed);
     }
 
-    ArrayList<GameObject> children=new ArrayList<>();
+    ArrayList<GameObject> children = new ArrayList<>();
 
-    GameObject parent=null;
-    public Mesh mesh=null;
-    public Shader shader=null;
-    public RigidBody rigidBody=null;
+    public ArrayList<GameObject> getChildren() {
+        return this.children;
+    }
 
-    private boolean visible=true;
+    GameObject parent = null;
+    public Mesh mesh = null;
+    public Shader shader = null;
+    public RigidBody rigidBody = null;
 
-    public void show(){visible=true;}
-    public void hide(){visible=false;}
-    public boolean isShown(){return visible;}
+    private boolean visible = true;
 
-    public GameObject getParent(){return parent;}
+    public void show() { visible = true; }
+    public void hide() { visible = false; }
+    public boolean isShown() { return visible; }
 
-    public Transform transform=new Transform();
-    public Transform globalTransform=new Transform();
+    public GameObject getParent() { return parent; }
 
-    public GameObject appendChild(GameObject model){
-        if(children.indexOf(model)==-1) {
+    public Transform transform = new Transform();
+    public Transform globalTransform = new Transform();
+
+    public GameObject appendChild(GameObject model) {
+        if (children.indexOf(model) == -1) {
             children.add(model);
             model.parent = this;
         }
         return model;
     }
 
-    public GameObject prependChild(GameObject model){
-        if(children.indexOf(model)==-1) {
-            children.add(0,model);
+    public GameObject prependChild(GameObject model) {
+        if (children.indexOf(model) == -1) {
+            children.add(0, model);
             model.parent = this;
         }
         return model;
     }
 
-    public GameObject removeChild(GameObject model){
-        if(children.remove(model)){
-            model.parent=null;
+    public GameObject removeChild(GameObject model) {
+        if (children.remove(model)) {
+            model.parent = null;
         }
         return model;
     }
 
-    public void remove(){
-        if(parent!=null){
+    public void remove() {
+        if (parent != null) {
             parent.removeChild(this);
         }
     }
 
-    public void Update(){};
+    public void Update() {}
 
-    public void updateAnimation(){
+    public void updateAnimation() {
         for (Component comp : components.values()) {
             if (comp instanceof MonoBehaviour) {
                 ((MonoBehaviour) comp).Update();
@@ -110,10 +111,9 @@ public class GameObject {
         }
     }
 
-    public void updateGlobalPositions(boolean parentModified){
-
-        boolean modified=false;
-        if(parentModified||transform.isModified())modified=true;
+    public void updateGlobalPositions(boolean parentModified) {
+        boolean modified = false;
+        if (parentModified || transform.isModified()) modified = true;
 
         globalTransform.reset(parent);
         globalTransform.multiply(transform.matrix);
@@ -122,53 +122,43 @@ public class GameObject {
             model.updateGlobalPositions(modified);
         }
 
-        if(modified) {
+        // We reset the modified flag regardless of whether we have a shader,
+        // because the transformation has been applied to globalTransform.
+        if (modified) {
             transform.resetModifiedFlag();
-            if(shader!=null) {
-                shader.use();
-                Transform t=new Transform(globalTransform.matrix);
-                shader.setUniformMat4("modelMatrix", t.matrix);
-                shader.setUniformMat4("normalMatrix", t.getNormalMatrix());
-            }
         }
     }
 
-    public void setShader(Shader s){
+    public void setShader(Shader s) {
         addComponent(s);
         for (GameObject model : children) {
             model.setShader(s);
         }
     }
 
-    public void simulate(double elapsedDisplayTime, double perSec){};
+    public void simulate(double elapsedDisplayTime, double perSec) {}
 
-    public void draw(){
+    public void draw() {
         draw(null);
     }
 
-    public void draw(Shader otherShader){
+    public void draw(Shader otherShader) {
+        if (!visible) return;
 
-        if(!visible)return;
+        Shader activeShader = (otherShader != null) ? otherShader : this.shader;
 
-        if(otherShader!=null){
-            if(mesh!=null){
-                otherShader.use();
-                Transform t=new Transform(globalTransform.matrix);
-                otherShader.setUniformMat4("modelMatrix", t.matrix);
-                otherShader.render(mesh);
-            }
-            for (GameObject model : children) {
-                model.draw(otherShader);
-            }
-        }
-        else{
-            if(mesh!=null){
-                if(shader!=null) shader.render(mesh);
-            }
-            for (GameObject model : children) {
-                model.draw();
-            }
+        if (mesh != null && activeShader != null) {
+            activeShader.use();
+            Transform t = new Transform(globalTransform.matrix);
+            activeShader.setUniformMat4("modelMatrix", t.matrix);
+            activeShader.setUniformMat4("normalMatrix", t.getNormalMatrix());
+            activeShader.render(mesh);
         }
 
+        for (GameObject model : children) {
+            // If we are using an 'otherShader' (like for object picking), pass it down.
+            // Otherwise, children will use their own shaders.
+            model.draw(otherShader);
+        }
     }
 }

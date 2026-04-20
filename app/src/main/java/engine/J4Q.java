@@ -22,6 +22,9 @@ public class J4Q {
         }
     }
 
+    public static int getObjectCount(){return objects.size();}
+
+
     public static TouchScreen touchScreen;
     public static int newObjectID(Mesh mesh){objectID+=1;objects.put(objectID,mesh);return objectID;}
     public static PhysicsEngine physicsEngine;

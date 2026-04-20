@@ -4,12 +4,14 @@ plugins {
 
 android {
     namespace = "com.ex.bwb"
-    compileSdk = 36
+    //noinspection GradleDependency
+    compileSdk = 32
 
     defaultConfig {
         applicationId = "edu.ufl.gameenginedev"
         minSdk = 19
-        targetSdk = 36
+        //noinspection ExpiredTargetSdkVersion
+        targetSdk = 32
         versionCode = 1
         versionName = "1.0"
         multiDexEnabled = true
