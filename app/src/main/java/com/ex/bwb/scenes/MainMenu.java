@@ -52,8 +52,9 @@ public class MainMenu implements Scene {
         params.gravity = Gravity.CENTER;
         startBtn.setLayoutParams(params);
 
+        // CHANGE this line in buildUI():
         startBtn.setOnClickListener(v ->
-                SceneManager.get().transitionTo(new ModelScene(glActivity))
+                SceneManager.get().transitionTo(new GameScene(glActivity)) // CHANGED: was ModelScene
         );
 
         overlay.addView(startBtn);

@@ -24,7 +24,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppFullScreenTheme">
         <activity
-            android:name="com.ex.bwb.Game"
+            android:name="com.ex.bwb.MainActivity"
             android:screenOrientation="landscape"
             android:exported="true">
             <intent-filter>
