@@ -2,6 +2,7 @@ package com.ex.bwb.networking;
 
 import android.util.Log;
 
+import com.ex.bwb.networking.packets.HandSyncPacket;
 import com.ex.bwb.networking.packets.Packet;
 import com.ex.bwb.networking.packets.PacketType;
 import com.ex.bwb.networking.packets.StateUpdatePacket;
@@ -21,10 +22,13 @@ public class GameClient {
   private int myPlayerId = -1;
 
   public interface GameEventListener {
+    void onHandSync(String[] cardNames);
+    void onPlayerJoined(int totalPlayers);
     void onConnected();
     void onGameStarted(int playerId);
     void onTurnUpdate(String message);
     void onMyTurn();
+    void onTurnChanged(int currentPlayerId); // new — for turn indicator
   }
 
   private GameEventListener listener;
@@ -38,27 +42,18 @@ public class GameClient {
       try {
         socket = new Socket(serverIP, port);
         out = new ObjectOutputStream(socket.getOutputStream());
+        out.flush();
         in = new ObjectInputStream(socket.getInputStream());
         connected = true;
         Log.d(TAG, "Connected to server at " + serverIP + ":" + port);
         if (listener != null) listener.onConnected();
 
-        // Read the first packet — now GAME_START carries our player ID
-        Packet firstPacket = (Packet) in.readObject();
-        Log.d(TAG, "First packet received: type=" + firstPacket.type + " playerId=" + firstPacket.playerId);
-        if (firstPacket.type == PacketType.GAME_START) {
-          myPlayerId = firstPacket.playerId;
-          Log.d(TAG, "I am player " + myPlayerId + " — game started!");
-        }
-
-        // Now start the normal listening loop
+// Route ALL packets through handleServerPacket — no special first packet
         while (connected) {
           Packet packet = (Packet) in.readObject();
           handleServerPacket(packet);
         }
-      }
-
-      catch (Exception e) {
+      } catch (Exception e) {
         Log.e(TAG, "Client error: " + e.getMessage());
       }
     }).start();
@@ -72,7 +67,8 @@ public class GameClient {
         break;
 
       case GAME_START:
-        Log.d(TAG, "[Player " + myPlayerId + "] Game has started!");
+        myPlayerId = packet.playerId; // assign FIRST
+        Log.d(TAG, "I am player " + myPlayerId + " — game started!");
         if (listener != null) listener.onGameStarted(myPlayerId);
         break;
 
@@ -83,12 +79,24 @@ public class GameClient {
 
       case STATE_UPDATE:
         StateUpdatePacket state = (StateUpdatePacket) packet;
-        Log.d(TAG, "[Player " + myPlayerId + "] State update: " + state.message);
-        if (listener != null) listener.onTurnUpdate(state.message);
+        if (listener != null) {
+          listener.onTurnUpdate(state.message);
+          listener.onTurnChanged(state.currentPlayerIndex);
+        }
         break;
 
       case ACTION_REJECTED:
         Log.d(TAG, "[Player " + myPlayerId + "] Action was rejected!");
+        break;
+
+      case PLAYER_JOINED:
+        Log.d(TAG, "Player joined, total: " + packet.playerId);
+        if (listener != null) listener.onPlayerJoined(packet.playerId);
+        break;
+
+      case HAND_SYNC:
+        HandSyncPacket hsp = (HandSyncPacket) packet;
+        if (listener != null) listener.onHandSync(hsp.cardNames);
         break;
 
       default:

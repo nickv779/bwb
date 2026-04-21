@@ -54,7 +54,7 @@ public class MainMenu implements Scene {
 
         // CHANGE this line in buildUI():
         startBtn.setOnClickListener(v ->
-                SceneManager.get().transitionTo(new GameScene(glActivity)) // CHANGED: was ModelScene
+                SceneManager.get().transitionTo(new Lobby(glActivity)) // CHANGED: was ModelScene
         );
 
         overlay.addView(startBtn);
