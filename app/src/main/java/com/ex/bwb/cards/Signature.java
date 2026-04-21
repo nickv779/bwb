@@ -2,13 +2,17 @@ package com.ex.bwb.cards;
 
 import com.ex.bwb.Player;
 import com.ex.bwb.game.GameController;
-
-import java.util.function.BiConsumer;
-
 import gl.shaders.Texture;
 
 public class Signature extends Card {
-    public Signature(String name, String description, String tagLine, CardType type, Texture artwork, BiConsumer<Player, GameController> effect) {
+
+    CardEffect effect;
+
+    public Signature(String name, String description, String tagLine,
+                     CardType type, Texture artwork, CardEffect effect) {
         super(name, description, tagLine, CardType.SIGNATURE, artwork);
+        this.effect = effect; // FIXED: was missing
     }
+
+    public CardEffect getEffect() { return this.effect; }
 }

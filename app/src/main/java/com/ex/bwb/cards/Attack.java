@@ -18,4 +18,6 @@ public class Attack extends Card {
     public void Activate(Player source, GameController controller) {
 
     }
+
+    public String getTarget() { return this.target; }
 }

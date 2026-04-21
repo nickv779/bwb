@@ -1,9 +1,12 @@
 package com.ex.bwb.game;
 
+import android.util.Log;
+
 import com.ex.bwb.Player;
 import com.ex.bwb.cards.Action;
 import com.ex.bwb.cards.Attack;
 import com.ex.bwb.cards.Card;
+import com.ex.bwb.cards.CardEffect;
 import com.ex.bwb.cards.CardType;
 import com.ex.bwb.cards.Effects;
 import com.ex.bwb.cards.LilBuddy;
@@ -11,21 +14,301 @@ import com.ex.bwb.cards.Objective;
 import com.ex.bwb.cards.ShakeUp;
 import com.ex.bwb.cards.Signature;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Random;
-import java.util.Stack;
+import java.util.function.BiConsumer;
 
 public class GameController {
 
-    GameState gameState;
-    public GameController(GameState gameState) { this.gameState = gameState; }
+    private static final String TAG = "GameController";
 
-    public void startGame() {
-        // Initialize players
+    public GameState state;
+    public Player[] players;
+    public int input = -1; // target player index set by server before calling any effect
+    // ADD to GameController.java
+    public int input2 = -1;
 
-        // Initialize deck
-        Card[] deck = initializeCards(this.gameState.DECK_SIZE);
-        shuffleCards(deck);
+    public GameController() {
+        state   = new GameState();
+        players = new Player[state.PLAYER_COUNT];
+    }
+
+    // -------------------------------------------------------------------------
+    // DEBUG — logs "[CardName] nothing happened..." when an effect isn't done yet
+    // -------------------------------------------------------------------------
+    public void debugNotImplemented(String cardName) {
+        Log.d(TAG, "[" + cardName + "] nothing happened...");
+    }
+
+    // -------------------------------------------------------------------------
+    // TURN MANAGEMENT
+    // -------------------------------------------------------------------------
+    public void startTurn() {
+        Player current = players[state.currentPlayer];
+
+        // AP reset from Player's own maxAP — already correct per BigBuddy ability
+        current.currAP = current.maxAP;
+
+        // doubleDraw already set in Player constructor for Fernando
+        int drawCount = current.doubleDraw ? 2 : 1;
+        drawCards(drawCount, current);
+
+        Log.d(TAG, "Player " + state.currentPlayer + "'s turn — " + current.currAP + " AP");
+    }
+
+    // offset=1 normal, offset=2 skips next player (BedTime)
+    public void changeTurn(int offset) {
+        // HeatDeathUniverse: replay current player's turn once before advancing
+        if (state.grantExtraTurn) {
+            state.grantExtraTurn = false;
+            startTurn();
+            return;
+        }
+
+        int next = (state.currentPlayer + offset) % state.PLAYER_COUNT;
+
+        // Skip eliminated players
+        while (!players[next].isAlive()) {
+            next = (next + 1) % state.PLAYER_COUNT;
+        }
+
+        // Track full rotations — one rotation = all players have gone once
+        if (next <= state.currentPlayer) {
+            state.rotationCount++;
+            tickRotationEffects();
+        }
+
+        state.currentPlayer = next;
+        startTurn();
+    }
+
+    public void endTurn() {
+        applyLilBuddyPassives();
+        eliminateDeadPlayers();
+        checkWinConditions();
+        changeTurn(1);
+    }
+
+    // -------------------------------------------------------------------------
+    // PLAYER ACTIONS — AP subtracted from player.currAP here and nowhere else
+    // -------------------------------------------------------------------------
+
+    public void playCard(int cardIndex, int targetPlayerId) {
+        Player current = players[state.currentPlayer];
+        if (current.currAP <= 0) return;
+
+        Card card = current.hand.get(cardIndex);
+
+        // ADDED: objective cards go to stash for free — no AP cost, no effect
+        if (card.getType() == CardType.OBJECTIVE) {
+            current.removeCard(cardIndex);
+            current.stash.add(card);
+            Log.d(TAG, "Player " + state.currentPlayer + " stashed an objective card ("
+                    + current.stash.size() + "/7)");
+            checkWinConditions();
+            return; // no AP subtracted, turn continues
+        }
+
+        if (!current.isCardEffectImmune()) {
+            executeCardEffect(card, current, targetPlayerId);
+        } else {
+            Log.d(TAG, "[AbsoluteZero] card effect blocked for player " + state.currentPlayer);
+        }
+
+        current.removeCard(cardIndex);
+        state.discardPile.push(card);
+
+        if (card.getType() == CardType.SIGNATURE) {
+            endTurn();
+        } else {
+            // AP subtracted HERE for Action, ShakeUp, and Attack cards
+            current.currAP--;
+            if (current.currAP <= 0) endTurn();
+        }
+    }
+
+    public void punch(int targetPlayerId) {
+        Player current = players[state.currentPlayer];
+        changeHealth(-1, players[targetPlayerId]);
+        Log.d(TAG, "Player " + state.currentPlayer + " punches player " + targetPlayerId);
+
+        // AP subtracted HERE
+        current.currAP--;
+        if (current.currAP <= 0) endTurn();
+    }
+
+    public void drawCard() {
+        Player current = players[state.currentPlayer];
+
+        if (state.drawBlockedRotations > 0) {
+            Log.d(TAG, "Draw blocked this rotation (Nuclear Winter)");
+            return;
+        }
+        if (current.cannotDrawNextTurn) {
+            current.cannotDrawNextTurn = false;
+            Log.d(TAG, "Player " + state.currentPlayer + " cannot draw (Fickle Fungus)");
+            return;
+        }
+
+        drawCards(1, current);
+
+        // AP subtracted HERE
+        current.currAP--;
+        if (current.currAP <= 0) endTurn();
+    }
+
+    // -------------------------------------------------------------------------
+    // HEALTH — delegates to Player.changeHealth() which already clamps
+    // -------------------------------------------------------------------------
+
+    public void changeHealth(int amount, Player target) {
+        target.changeHealth(amount);
+    }
+
+    // -------------------------------------------------------------------------
+    // CARDS
+    // -------------------------------------------------------------------------
+
+    public void drawCards(int count, Player target) {
+        for (int i = 0; i < count; i++) {
+            if (state.drawPile.isEmpty()) reshuffleDiscard();
+            if (!state.drawPile.isEmpty()) target.addCard(state.drawPile.pop());
+        }
+    }
+
+    public void drawDiscard(int count, Player target) {
+        for (int i = 0; i < count; i++) {
+            if (!state.discardPile.isEmpty())
+                target.addCard(state.discardPile.pop());
+        }
+    }
+
+    public void shuffleDeck() {
+        List<Card> temp = new ArrayList<>(state.drawPile);
+        Collections.shuffle(temp);
+        state.drawPile.clear();
+        state.drawPile.addAll(temp);
+    }
+
+    private void reshuffleDiscard() {
+        state.drawPile.addAll(state.discardPile);
+        state.discardPile.clear();
+        shuffleDeck();
+    }
+
+    // Dispatches to the correct effect using the actual card subclass — no string switch needed
+    private void executeCardEffect(Card card, Player source, int targetPlayerId) {
+        input = targetPlayerId;
+
+        if (card instanceof Action) {
+            CardEffect effect = ((Action) card).getEffect();
+            effect.apply(source, this);
+
+        } else if (card instanceof Attack) {
+            // changeHealth(-1, ((Attack) card).getTarget());
+
+        } else if (card instanceof ShakeUp) {
+            CardEffect effect = ((ShakeUp) card).getEffect();
+            effect.apply(source, this);
+
+        } else if (card instanceof Signature) {
+            CardEffect effect = ((Signature) card).getEffect();
+            effect.apply(source, this);
+
+        } else if (card instanceof LilBuddy) {
+            CardEffect effect = ((LilBuddy) card).getEffect();
+            effect.apply(source, this);
+
+        } else {
+            debugNotImplemented(card.getName());
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // LIL' BUDDY PASSIVES — applied at end of each turn
+    // -------------------------------------------------------------------------
+
+    private void applyLilBuddyPassives() {
+        if (state.lilBuddiesBlockedRotations > 0) return;
+        for (Player p : players) {
+            if (p == null || !p.isAlive() || p.isLilBuddyImmune()) continue;
+            // In GameController.applyLilBuddyPassives() — add asleep check
+            for (LilBuddy lb : p.lilBuddies) {
+                if (lb != null && lb.getEffect() != null && !lb.asleep) { // ADDED: !lb.asleep
+                    lb.getEffect().apply(p, this);
+                }
+            }
+        }
+    }
+
+    public void applyLilBuddyBenefitTo(LilBuddy buddy, Player target) {
+        if (buddy != null && buddy.getEffect() != null) {
+            buddy.getEffect().apply(target, this);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // ROTATION EFFECTS — called when a full rotation completes
+    // -------------------------------------------------------------------------
+
+    private void tickRotationEffects() {
+        if (state.lilBuddiesBlockedRotations > 0) state.lilBuddiesBlockedRotations--;
+        if (state.drawBlockedRotations > 0)        state.drawBlockedRotations--;
+        for (Player p : players) {
+            if (p != null) p.tickImmuneCounters();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // WIN / ELIMINATION
+    // -------------------------------------------------------------------------
+
+    private void eliminateDeadPlayers() {
+        for (Player p : players) {
+            if (p != null && p.currHP <= 0) {
+                p.setAlive(false);
+                Log.d(TAG, p.name + " has been eliminated!");
+            }
+        }
+    }
+
+    private void checkWinConditions() {
+        // Win condition 1: collect 7 objective cards
+        for (Player p : players) {
+            if (p != null && p.stash.size() >= 7) {
+                Log.d(TAG, p.name + " wins with 7 objective cards!");
+            }
+        }
+        // Win condition 2: last Big Buddy standing
+        long aliveCount = 0;
+        Player lastAlive = null;
+        for (Player p : players) {
+            if (p != null && p.isAlive()) { aliveCount++; lastAlive = p; }
+        }
+        if (aliveCount == 1 && lastAlive != null) {
+            Log.d(TAG, lastAlive.name + " wins — last one standing!");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // SPARE CHANGE HELPERS
+    // -------------------------------------------------------------------------
+
+    public Player getPlayerWithMostObjectives() {
+        Player best = players[0];
+        for (Player p : players) {
+            if (p != null && p.stash.size() > best.stash.size()) best = p;
+        }
+        return best;
+    }
+
+    public Player getPlayerWithFewestObjectives() {
+        Player worst = players[0];
+        for (Player p : players) {
+            if (p != null && p.stash.size() < worst.stash.size()) worst = p;
+        }
+        return worst;
     }
 
     private Card[] initializeCards(int deckSize) {
@@ -170,12 +453,12 @@ public class GameController {
                 Effects::NuclearWinter);
         cards[22] = new ShakeUp("The Flip Side",
                 "Reshuffle the discard pile back into the deck. This card should be the only thing in the discard pile after it is used.",
-        "See You There!",
+                "See You There!",
                 CardType.SHAKE_UP,
-        null,
+                null,
                 Effects::FlipSide);
         cards[23] = new ShakeUp("The Uncertainty Principle",
-      "Choose 1 of the following:" +
+                "Choose 1 of the following:" +
                         "/n 1) Choose 1 random card from every opponent." +
                         "/n 2) Search the deck for any one card.",
                 "You Can Never Be Too Sure",
@@ -213,7 +496,7 @@ public class GameController {
                 null,
                 Effects::Party);
         cards[29] = new LilBuddy("Fighter Snail",
-      "Block one action to you every other rotation",
+                "Block one action to you every other rotation",
                 null,
                 CardType.LIL_BUDDY,
                 null,
@@ -340,79 +623,75 @@ public class GameController {
         return cards;
     }
 
-    private void shuffleCards(Card[] cards) {
-        // shuffle the cards randomly via Fisher-Yates
-        Random rand = new Random();
-        for (int i = cards.length - 1; i > 0; i--) {
-            int j = rand.nextInt(i + 1);
-            Card temp = cards[i];
-            cards[i] = cards[j];
-            cards[j] = temp;
+    // ADD this method to GameController.java
+    public void buildDeck() {
+        state.drawPile.clear();
+
+        // --- ACTION CARDS ---
+        state.drawPile.push(new Action("BedTime",        "The player who goes next gets skipped.",                          "Have a Short Rest",        CardType.ACTION, null, (s, gc) -> Effects.BedTime(s, gc)));
+        state.drawPile.push(new Action("DumpsterDiving", "Grab one card from the discard pile and put it in your hand.",   "One Man's Trash",          CardType.ACTION, null, (s, gc) -> Effects.DumpsterDiving(s, gc)));
+        state.drawPile.push(new Action("BeachEpisode",   "Lil' Buddies' benefits cannot be used for one rotation.",        "They are on Vacation",     CardType.ACTION, null, (s, gc) -> Effects.BeachEpisode(s, gc)));
+        state.drawPile.push(new Action("PickPocket",     "Steal any card from the player directly across from you.",       "Five Finger Discount",     CardType.ACTION, null, (s, gc) -> Effects.PickPocket(s, gc)));
+        state.drawPile.push(new Action("NoSoliciting",   "For 1 rotation, nobody can use a Lil' Buddy's benefit to affect you.", "Get Off My Lawn!",   CardType.ACTION, null, (s, gc) -> Effects.NoSoliciting(s, gc)));
+        state.drawPile.push(new Action("ChangeChannel",  "Rotate hands counter clockwise.",                                "Pass Me the Remote",       CardType.ACTION, null, (s, gc) -> Effects.ChangeChannel(s, gc)));
+        state.drawPile.push(new Action("SpareChange",    "Whoever has the most objective cards puts one back and gives another to the player with the fewest.", "Sorry, I Only Carry Cash", CardType.ACTION, null, (s, gc) -> Effects.SpareChange(s, gc)));
+        state.drawPile.push(new Action("SpaDay",         "Choose a player to join you! Both of you heal +1 HP.",           "Self-Care",                CardType.ACTION, null, (s, gc) -> Effects.SpaDay(s, gc)));
+        state.drawPile.push(new Action("OlReliable",     "Draw 2 cards.",                                                  "If It Ain't Broke",        CardType.ACTION, null, (s, gc) -> Effects.OlReliable(s, gc)));
+        state.drawPile.push(new Action("BarterTime",     "Choose a player. You both reveal hands. Pick any card from their hand (locked), they pick one from yours.", "Deal or No Deal?", CardType.ACTION, null, (s, gc) -> Effects.BarterTime(s, gc)));
+        state.drawPile.push(new Action("ResetButton",    "Everyone shuffles their hand into the deck and draws four cards.", "A Fresh Start",           CardType.ACTION, null, (s, gc) -> Effects.ResetButton(s, gc)));
+        state.drawPile.push(new Action("InItToWinIt",    "Search the deck for an objective card and add it to your stash.", "Finders, Keepers",        CardType.ACTION, null, (s, gc) -> Effects.InItToWinIt(s, gc)));
+        state.drawPile.push(new Action("GooglyEyedRock", "Throw at an enemy for -1HP. Goes to their hand instead of discard. Discarded after 4 throws.", "I Guess You Hit Rock Bottom", CardType.ACTION, null, (s, gc) -> Effects.GooglyEyedRock(s, gc)));
+        state.drawPile.push(new Action("PhoneAFriend",   "Choose one of your opponent's Lil' Buddies and use their ability to help yourself.",           "The Best Lifeline", CardType.ACTION, null, (s, gc) -> Effects.PhoneAFriend(s, gc)));
+        state.drawPile.push(new Action("FickleFungus",   "Pick an opponent. They cannot draw at the start of their next turn.", "Not A Fun Guy",        CardType.ACTION, null, (s, gc) -> Effects.FickleFungus(s, gc)));
+        state.drawPile.push(new Action("UnderdogDuel",   "Everyone reveals their hand. Everyone who does not have a Signature or Shake-Up card gets +1HP.", "Chance Time!", CardType.ACTION, null, (s, gc) -> Effects.UnderdogDuel(s, gc)));
+
+        // --- SHAKE-UP CARDS ---
+        state.drawPile.push(new ShakeUp("NuclearWinter",        "For one rotation, nobody can draw unless it is from an action card.",  "Maybe It's Time to Break the Ice", CardType.SHAKE_UP, null, (s, gc) -> Effects.NuclearWinter(s, gc)));
+        state.drawPile.push(new ShakeUp("FlipSide",             "Reshuffle the discard pile back into the deck. This card should be the only thing in the discard pile after it is used.", "See You There!", CardType.SHAKE_UP, null, (s, gc) -> Effects.FlipSide(s, gc)));
+        state.drawPile.push(new ShakeUp("UncertaintyPrinciple", "Choose 1: Take 1 random card from every opponent, OR search the deck for any one card.", "You Can Never Be Too Sure", CardType.SHAKE_UP, null, (s, gc) -> Effects.UncertaintyPrinciple(s, gc)));
+        state.drawPile.push(new ShakeUp("AbsoluteZero",         "For one rotation, no cards will affect you, good or bad.",            "Who Turned Down the Thermostat?",  CardType.SHAKE_UP, null, (s, gc) -> Effects.AbsoluteZero(s, gc)));
+
+        // --- SIGNATURE CARDS ---
+        state.drawPile.push(new Signature("MassExtinction",  "Everyone but you takes -2 HP.",                "Darrel's Trump Card",    CardType.SIGNATURE, null, (s, gc) -> Effects.MassExtinction(s, gc)));
+        state.drawPile.push(new Signature("EconomicRecession","Everyone but you discards their entire hand.", "Fernando's Trump Card",  CardType.SIGNATURE, null, (s, gc) -> Effects.EconomicRecession(s, gc)));
+        state.drawPile.push(new Signature("HeatDeathUniverse","Take a 2nd turn.",                            "Gerald's Trump Card",    CardType.SIGNATURE, null, (s, gc) -> Effects.HeatDeathUniverse(s, gc)));
+        state.drawPile.push(new Signature("Party",           "Everyone reveals their hand and you may pick 1 card from each.", "Mr. Ostrich's Trump Card", CardType.SIGNATURE, null, (s, gc) -> Effects.Party(s, gc)));
+
+        // --- ATTACK CARDS ---
+        state.drawPile.push(new Attack("MagicWand", "-1 HP to an opponent of your choice.",  "Sometimes You Gotta Close a Door", CardType.ATTACK, null, 1, "Any"));
+        state.drawPile.push(new Attack("Grenade",   "-1 HP to everyone, including you.",     "Tick, Tick... Boom!",              CardType.ATTACK, null, 1, "All"));
+        state.drawPile.push(new Attack("Katana",    "The person to your left takes -1 HP.",  "Chop Chop",                       CardType.ATTACK, null, 1, "Left"));
+        state.drawPile.push(new Attack("Knife",     "-1 HP to the player to your right.",    "Backstabber",                     CardType.ATTACK, null, 1, "Right"));
+        state.drawPile.push(new Attack("Tackle",    "The player directly across takes -1 HP.","Get Your Head in the Game",     CardType.ATTACK, null, 1, "Across"));
+
+        // --- OBJECTIVE CARDS (20 copies) ---
+        for (int i = 0; i < 20; i++) {
+            state.drawPile.push(new Objective("OneStepCloser", "Need a total of 7 of these in your stash to win!", "Air Force Ones or something", CardType.OBJECTIVE, null));
         }
+
+        shuffleDeck();
     }
 
-    // below is used for any turn-affecting card
-    // change the current user by some shift, i.e. shift == 1 to skip
-    // the next player, this might change depending on how currentPlayer
-    // is incremented in later implementation
+    // ADD these helpers to GameController.java
 
-    public void changeTurn(int shift) {
-        this.gameState.currentPlayer = (this.gameState.currentPlayer) % 4;
-    }
-    public void drawDeck(int amount){
-        for (int i = 0; i < amount; i++){
-            Card specificCard = this.gameState.drawPile.pop();
-            this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
+    public Player getPlayerWithMostHP(Player exclude) {
+        Player best = null;
+        for (Player p : players) {
+            if (p == null || p == exclude) continue;
+            if (best == null || p.currHP > best.currHP) best = p;
         }
-    }
-    public void drawDiscard(int cardID){
-            Card specificCard = this.gameState.discardPile.remove(cardID);
-            this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
+        return best;
     }
 
-    public void drawDeckSpecific(int amount, int cardID){
-        for (int i = 0; i < amount; i++){
-            Card specificCard = this.gameState.drawPile.remove(cardID);
-            this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
+    public Player getPlayerWithMostLilBuddies(Player exclude) {
+        Player best = null;
+        int bestCount = -1;
+        for (Player p : players) {
+            if (p == null || p == exclude) continue;
+            int count = 0;
+            for (LilBuddy lb : p.lilBuddies) if (lb != null) count++;
+            if (count > bestCount) { best = p; bestCount = count; }
         }
+        return best;
     }
-
-    public void changeHealth(int changeAmount, Player target){
-        target.changeHealth(changeAmount);
-    }
-
-    public void stopBenefits(Player target, int cooldown){
-        int i = 0;
-        while (i < cooldown){
-            //target = not effected or something idk, but i image some sort of bool
-            i++;
-        }
-    }
-
-    public void handVisibility (List<Integer> targets, boolean handVisible){
-        for (int i = 0; i < targets.size(); i++){
-            this.gameState.players[targets.get(i)].showHand(handVisible);
-        }
-    }
-
-    public void stealCard(List<Integer> targets, int amountPer, int cardID) {
-        for (int i = 0; i < targets.size(); i++){
-            for (int j = 0; j < amountPer; j++) {
-                Card specificCard = this.gameState.players[i].removeCard(cardID);
-                this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
-            }
-        }
-    }
-
-    public void swapCard (int target, int amount, List<Integer> cardIDs) {
-//
-//                Card specificCard = this.gameState.players[i].removeCard(cardIDs.get(j));
-//                this.gameState.players[this.gameState.currentPlayer].addCard(specificCard);
-//
-//         //TODO: Fix implementation cause something fishy is going on :(
-    }
-
-    public void rotateHands () {}
-
 }
-
