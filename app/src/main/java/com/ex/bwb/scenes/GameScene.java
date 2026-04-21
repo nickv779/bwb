@@ -39,9 +39,14 @@ public class GameScene implements Scene {
     private static final String TAG = "GameScene";
 
     public enum Mode { CLIENT, HOST, TEST_4P }
-    private static final Mode MODE = Mode.TEST_4P;
+    private static final Mode MODE = Mode.CLIENT;
     private static final int PORT = 5556;
+    private static final int PLAYIT_PORT = 19156; // replace with your actual playit port
+    private static final String PLAYIT_HOST = "209.25.140.19"; // replace with your actual playit hostname
 
+    // Add these member variables at the top of GameScene
+    private volatile String pendingUIStatus = null;
+    private android.widget.TextView connectionLabel;
     private final GLActivity glActivity;
     private final Activity activity;
 
@@ -157,6 +162,10 @@ public class GameScene implements Scene {
 
     @Override
     public void update() {
+        if (client != null && !client.isConnected() && phase == GamePhase.LOBBY) {
+            updateConnectionLabel("🔴 Connection failed — check server", Color.RED);
+        }
+
         // Status text
         if (pendingStatus != null && statusTextGL != null) {
             statusTextGL.setText(pendingStatus, 0, 40, textPaint);
@@ -207,18 +216,44 @@ public class GameScene implements Scene {
 
     @Override
     public void buildUI(FrameLayout overlay) {
+        // existing back button
         Button backBtn = new Button(activity);
         backBtn.setText("Menu");
         FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT);
-        p.gravity      = Gravity.TOP | Gravity.END;
-        p.topMargin    = 40;
-        p.rightMargin  = 40;
+        p.gravity     = Gravity.TOP | Gravity.END;
+        p.topMargin   = 40;
+        p.rightMargin = 40;
         backBtn.setLayoutParams(p);
         backBtn.setOnClickListener(v ->
                 SceneManager.get().transitionTo(new MainMenu(glActivity)));
         overlay.addView(backBtn);
+
+        // Connection status label
+        connectionLabel = new android.widget.TextView(activity);
+        connectionLabel.setText("⚫ Not connected");
+        connectionLabel.setTextColor(Color.WHITE);
+        connectionLabel.setTextSize(16);
+        connectionLabel.setPadding(20, 20, 20, 20);
+
+        FrameLayout.LayoutParams labelParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT);
+        labelParams.gravity   = Gravity.TOP | Gravity.START;
+        labelParams.topMargin = 40;
+        labelParams.leftMargin = 40;
+        connectionLabel.setLayoutParams(labelParams);
+        overlay.addView(connectionLabel);
+    }
+
+    private void updateConnectionLabel(String text, int color) {
+        activity.runOnUiThread(() -> {
+            if (connectionLabel != null) {
+                connectionLabel.setText(text);
+                connectionLabel.setTextColor(color);
+            }
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -452,6 +487,11 @@ public class GameScene implements Scene {
                             int idx = i;
                             testClients[i].setGameEventListener(new GameClient.GameEventListener() {
                                 @Override
+                                public void onConnected() {
+                                    updateConnectionLabel("🟡 Connected — waiting for players", Color.YELLOW);
+                                }
+
+                                @Override
                                 public void onGameStarted(int playerId) {
                                     Log.d(TAG, "[Test P" + playerId + "] Game started");
                                     // Only trigger transition once, from player 0's perspective
@@ -493,13 +533,12 @@ public class GameScene implements Scene {
 
                 case CLIENT:
                 default:
-                    updateStatus("Searching for game...");
-                    discovery.listenForServers((serverIP, tcpPort, gameName) -> {
-                        updateStatus("Found game! Connecting...");
-                        client = new GameClient();
-                        setupClientListener(client);
-                        client.connect(serverIP, tcpPort);
-                    });
+                    Log.d(TAG, "Connecting to remote server...");
+                    updateStatus("Connecting to server...");
+                    updateConnectionLabel("🟡 Connecting to " + PLAYIT_HOST + ":" + PLAYIT_PORT, Color.YELLOW);
+                    client = new GameClient();
+                    setupClientListener(client);
+                    client.connect(PLAYIT_HOST, PLAYIT_PORT);
                     break;
             }
         });
@@ -531,10 +570,15 @@ public class GameScene implements Scene {
         c.setGameEventListener(new GameClient.GameEventListener() {
             @Override
             public void onGameStarted(int playerId) {
-                myPlayerId            = playerId;
-                currentTurnPlayer     = 0;
+                myPlayerId                = playerId;
+                currentTurnPlayer         = 0;
                 pendingTransitionPlayerId = playerId;
-                pendingGameTransition = true;
+                pendingGameTransition     = true;
+                updateConnectionLabel("🟢 Connected — Player " + playerId, Color.GREEN);
+            }
+            @Override
+            public void onConnected() {
+                updateConnectionLabel("🟡 Connected — waiting for players", Color.YELLOW);
             }
             @Override
             public void onTurnUpdate(String message) {
@@ -544,7 +588,7 @@ public class GameScene implements Scene {
                         int p = Integer.parseInt(
                                 message.substring(7, message.indexOf("'s")));
                         if (p != currentTurnPlayer) {
-                            currentTurnPlayer = p;
+                            currentTurnPlayer          = p;
                             pendingTurnIndicatorUpdate = true;
                         }
                     } catch (Exception ignored) {}
