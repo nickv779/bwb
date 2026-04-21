@@ -212,29 +212,68 @@ public class GameScene implements Scene {
     // TOUCH HANDLING
     // -------------------------------------------------------------------------
 
-    private void handleTap() {
-        GameObject touched = J4Q.touchScreen.pickObject(0);
-        if (touched == null) return;
+    private int getCardIndexAtScreenPos(float screenX, float screenY) {
+        // Screen dimensions
+        float screenW = glActivity.getSurfaceView().getWidth();
+        float screenH = glActivity.getSurfaceView().getHeight();
 
+        // Convert screen coords to normalized device coords (-1 to 1)
+        float ndcX = (screenX / screenW) * 2f - 1f;
+        float ndcY = 1f - (screenY / screenH) * 2f; // flip Y
+
+        // Check cards in reverse order (top cards first)
         int count = handCards.size();
-        for (int i = 0; i < count; i++) {
-            if (!handCards.get(i).isHit(touched)) continue;
+        for (int i = count - 1; i >= 0; i--) {
+            float totalSpread = FAN_SPREAD * (count - 1);
+            float startAngle = -totalSpread / 2f;
+            float angle = startAngle + i * FAN_SPREAD;
+            float rad = (float) Math.toRadians(angle);
 
-            if (zoomedCardIndex == i) {
-                // Un-zoom
-                placeCardInFan(handCards.get(i), i, count, false);
+            float cardX = FAN_RADIUS * (float) Math.sin(rad);
+            float cardY = FAN_Y_OFFSET + FAN_RADIUS * (float) Math.cos(rad);
+
+            // Project card world position to approximate screen position
+            // Camera is at z=-5, so perspective factor is roughly:
+            float z = 5f; // distance from camera
+            float projX = cardX / z;
+            float projY = cardY / z;
+
+            // Hit test with card-sized bounding box
+            float halfW = CARD_SCALE * 0.4f;
+            float halfH = CARD_SCALE * 0.55f;
+
+            if (ndcX >= projX - halfW && ndcX <= projX + halfW
+                && ndcY >= projY - halfH && ndcY <= projY + halfH) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void handleTap() {
+        int tappedIndex = getCardIndexAtScreenPos(touchStartX, touchStartY);
+        if (tappedIndex < 0) {
+            // Tapped empty space — un-zoom current card
+            if (zoomedCardIndex >= 0 && zoomedCardIndex < handCards.size()) {
+                placeCardInFan(handCards.get(zoomedCardIndex), zoomedCardIndex, handCards.size(), false);
                 zoomedCardIndex = -1;
-            } else {
-                // Restore previously zoomed
-                if (zoomedCardIndex >= 0 && zoomedCardIndex < count) {
-                    placeCardInFan(handCards.get(zoomedCardIndex),
-                            zoomedCardIndex, count, false);
-                }
-                // Zoom this one
-                placeCardInFan(handCards.get(i), i, count, true);
-                zoomedCardIndex = i;
             }
             return;
+        }
+
+        int count = handCards.size();
+        if (zoomedCardIndex == tappedIndex) {
+            // Un-zoom
+            placeCardInFan(handCards.get(tappedIndex), tappedIndex, count, false);
+            zoomedCardIndex = -1;
+        } else {
+            // Restore previously zoomed
+            if (zoomedCardIndex >= 0 && zoomedCardIndex < count) {
+                placeCardInFan(handCards.get(zoomedCardIndex), zoomedCardIndex, count, false);
+            }
+            // Zoom this one
+            placeCardInFan(handCards.get(tappedIndex), tappedIndex, count, true);
+            zoomedCardIndex = tappedIndex;
         }
     }
 
@@ -242,19 +281,29 @@ public class GameScene implements Scene {
         if (!isMyTurn) return;
         if (zoomedCardIndex < 0 || zoomedCardIndex >= handCards.size()) return;
 
-        int cardIndex    = zoomedCardIndex;
-        int targetId     = (myPlayerId + 1) % 4; // default target: next player
+        int cardIndex = zoomedCardIndex;
+        String cardName = currentCardNames[cardIndex];
+        int targetId = resolveTarget(cardName);
 
         client.sendAction(new PlayCardPacket(myPlayerId, cardIndex, targetId));
 
         glActivity.scene.removeChild(handCards.remove(cardIndex));
         currentCardNames = removeIndex(currentCardNames, cardIndex);
-        zoomedCardIndex  = -1;
+        zoomedCardIndex = -1;
 
-        // Re-layout remaining cards
         int count = handCards.size();
         for (int i = 0; i < count; i++) {
             placeCardInFan(handCards.get(i), i, count, false);
+        }
+    }
+
+    private int resolveTarget(String cardName) {
+        switch (cardName) {
+            case "Knife":    return (myPlayerId + 1) % 4; // right
+            case "Katana":   return (myPlayerId + 3) % 4; // left
+            case "Tackle":   return (myPlayerId + 2) % 4; // across
+            case "Grenade":  return -1;                    // all (server handles)
+            default:         return (myPlayerId + 1) % 4;  // default for now
         }
     }
 
