@@ -21,6 +21,7 @@ public class GameClient {
   private int myPlayerId = -1;
 
   public interface GameEventListener {
+    void onConnected();
     void onGameStarted(int playerId);
     void onTurnUpdate(String message);
     void onMyTurn();
@@ -40,6 +41,7 @@ public class GameClient {
         in = new ObjectInputStream(socket.getInputStream());
         connected = true;
         Log.d(TAG, "Connected to server at " + serverIP + ":" + port);
+        if (listener != null) listener.onConnected();
 
         // Read the first packet — now GAME_START carries our player ID
         Packet firstPacket = (Packet) in.readObject();
