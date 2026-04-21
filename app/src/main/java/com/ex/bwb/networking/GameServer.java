@@ -12,6 +12,7 @@ import com.ex.bwb.cards.Effects;
 import com.ex.bwb.cards.Signature;
 import com.ex.bwb.game.GameController;
 import com.ex.bwb.game.GameState;
+import com.ex.bwb.networking.packets.HandSyncPacket;
 import com.ex.bwb.networking.packets.Packet;
 import com.ex.bwb.networking.packets.PacketType;
 import com.ex.bwb.networking.packets.PlayCardPacket;
@@ -180,9 +181,14 @@ public class GameServer {
         break;
 
       case DRAW_CARD:
-        Log.d(TAG, "Player " + playerId + " draws a card");
-        // CHANGED: was TODO — now wired to GameController
         gameController.drawCard();
+        // Resync hand after draw
+        Player dp = gameController.players[playerId];
+        String[] updatedNames = new String[dp.hand.size()];
+        for (int i = 0; i < dp.hand.size(); i++) {
+          updatedNames[i] = dp.hand.get(i).getName();
+        }
+        sendTo(playerId, new HandSyncPacket(playerId, updatedNames));
         break;
 
       case PUNCH:

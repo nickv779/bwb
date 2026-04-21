@@ -5,6 +5,7 @@ import com.ex.bwb.cards.BigBuddy;
 import com.ex.bwb.cards.CardType;
 import com.ex.bwb.game.GameController;
 import com.ex.bwb.game.GameState;
+import com.ex.bwb.networking.packets.HandSyncPacket;
 import com.ex.bwb.networking.packets.Packet;
 import com.ex.bwb.networking.packets.PacketType;
 import com.ex.bwb.networking.packets.PlayCardPacket;
@@ -93,8 +94,11 @@ public class StandaloneServer {
         ClientConnection conn = new ClientConnection(socket, playerId);
         clients.add(conn);
         log("Player " + playerId + " connected from "
-            + socket.getInetAddress().getHostAddress()
-            + " (" + clients.size() + "/" + MAX_PLAYERS + ")");
+                + socket.getInetAddress().getHostAddress()
+                + " (" + clients.size() + "/" + MAX_PLAYERS + ")");
+
+        // Broadcast to all current clients how many players are now connected
+        broadcastToAll(new Packet(PacketType.PLAYER_JOINED, clients.size()));
       }
 
       log("All players connected! Starting game.");
@@ -118,8 +122,15 @@ public class StandaloneServer {
 
       // Build deck and deal
       gameController.buildDeck();
-      for (Player p : gameController.players) {
+      for (int i = 0; i < gameController.players.length; i++) {
+        Player p = gameController.players[i];
         gameController.drawCards(7, p);
+
+        String[] cardNames = new String[p.hand.size()];
+        for (int j = 0; j < p.hand.size(); j++) {
+          cardNames[j] = p.hand.get(j).getName();
+        }
+        sendTo(i, new HandSyncPacket(i, cardNames));
       }
 
       gameController.startTurn();

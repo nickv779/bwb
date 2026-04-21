@@ -11,7 +11,9 @@ public enum PacketType {
   END_TURN,
 
   // Server -> Client
+  HAND_SYNC,
   JOIN_ACCEPTED,
+  PLAYER_JOINED,
   GAME_START,
   STATE_UPDATE,
   YOUR_TURN,
